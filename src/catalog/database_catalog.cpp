@@ -34,6 +34,8 @@ bool DatabaseCatalog::DeleteTable(transaction::TransactionContext *const txn, co
 
 }
 
+
+// TODO(Chenyao): Do we need namespace_oid_t
 std::pair<generic_oid_t, postgres::ClassKind> DatabaseCatalog::getClassOidKind(transaction::TransactionContext *const txn, const namespace_oid_t ns,
                                                                const std::string &name) {
   std::vector<storage::TupleSlot> index_results;
