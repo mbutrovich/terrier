@@ -113,7 +113,7 @@ class Catalog {
  private:
   transaction::TransactionManager *txn_manager_;
   storage::BlockStore *catalog_block_store_;
-  std::atomic<db_oid_t> next_oid_
+  std::atomic<db_oid_t> next_oid_;
 
   storage::SqlTable *databases_;
   storage::index::Index *databases_name_index_;

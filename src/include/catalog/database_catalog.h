@@ -5,11 +5,10 @@
 #include "catalog/catalog_defs.h"
 #include "catalog/index_schema.h"
 #include "catalog/schema.h"
-#include "transaction/transaction_context.h"
-#include "transaction/transaction_defs.h"
 #include "storage/index/index.h"
 #include "storage/sql_table.h"
-
+#include "transaction/transaction_context.h"
+#include "transaction/transaction_defs.h"
 
 namespace terrier::catalog {
 
@@ -95,6 +94,24 @@ class DatabaseCatalog {
    */
   bool RenameTable(transaction::TransactionContext *txn, table_oid_t table, const std::string &name);
 
+  /**
+   * Inform the catalog of where the underlying storage for a table is
+   * @param table OID in the catalog
+   * @param table_ptr to the memory where the storage is
+   * @return whether the operation was successful
+   * @warning The table pointer that is passed in must be on the heap as the
+   * catalog will take ownership of it and schedule its deletion with the GC
+   * at the appropriate time.
+   */
+  bool SetTablePointer(transaction::TransactionContext *txn, namespace_oid_t ns, table_oid_t table, storage::SqlTable *table_ptr);
+
+  /**
+   * Obtain the storage pointer for a SQL table
+   * @param table to which we want the storage object
+   * @return the storage object corresponding to the passed OID
+   */
+  common::ManagedPointer<storage::SqlTable> GetTable(transaction::TransactionContext *txn, namespace_oid_t ns, table_oid_t table);
+
 
   /**
    * Apply a new schema to the given table.  The changes should modify the latest
@@ -174,6 +191,24 @@ class DatabaseCatalog {
    */
   const IndexSchema &GetIndexSchema(transaction::TransactionContext *txn, index_oid_t index);
 
+  /**
+ * Inform the catalog of where the underlying implementation of the index is
+ * @param index OID in the catalog
+ * @param index_ptr to the memory where the index is
+ * @return whether the operation was successful
+ * @warning The index pointer that is passed in must be on the heap as the
+ * catalog will take ownership of it and schedule its deletion with the GC
+ * at the appropriate time.
+ */
+  bool SetIndexPointer(transaction::TransactionContext *txn, index_oid_t index, storage::index::Index *index_ptr);
+
+  /**
+   * Obtain the pointer to the index
+   * @param index to which we want a pointer
+   * @return the pointer to the index
+   */
+  common::ManagedPointer<storage::index::Index> GetIndex(transaction::TransactionContext *txn, index_oid_t index);
+
  private:
   storage::SqlTable *namespaces_;
   storage::index::Index *namespaces_oid_index_;
@@ -181,7 +216,7 @@ class DatabaseCatalog {
 
   storage::SqlTable *classes_;
   storage::index::Index *classes_oid_index_;
-  storage::index::Index *classes_name_index_; // indexed on namespace OID and name
+  storage::index::Index *classes_name_index_;  // indexed on namespace OID and name
   storage::index::Index *classes_namespace_index_;
 
   storage::SqlTable *indexes_;
@@ -189,18 +224,18 @@ class DatabaseCatalog {
   storage::index::Index *indexes_table_index_;
 
   storage::SqlTable *columns_;
-  storage::index::Index *columns_oid_index_; // indexed on class OID and column OID
-  storage::index::Index *columns_name_index_; // indexed on class OID and column name
+  storage::index::Index *columns_oid_index_;   // indexed on class OID and column OID
+  storage::index::Index *columns_name_index_;  // indexed on class OID and column name
   storage::index::Index *columns_class_index_;
 
   storage::SqlTable *types_;
   storage::index::Index *types_oid_index_;
-  storage::index::Index *types_name_index_; // indexed on namespace OID and name
+  storage::index::Index *types_name_index_;  // indexed on namespace OID and name
   storage::index::Index *types_namespace_index_;
 
   storage::SqlTable *constraints_;
   storage::index::Index *constraints_oid_index_;
-  storage::index::Index *constraints_name_index_; // indexed on namespace OID and name
+  storage::index::Index *constraints_name_index_;  // indexed on namespace OID and name
   storage::index::Index *constraints_namespace_index_;
   storage::index::Index *constraints_table_index_;
   storage::index::Index *constraints_index_index_;
@@ -213,9 +248,12 @@ class DatabaseCatalog {
 
   TearDown(transaction::TransactionContext *txn);
 
-  ~DatabaseCatalog();
+  bool CreateTableEntry(transaction::TransactionContext *txn, table_oid_t table_oid, namespace_oid_t ns,
+                        const std::string &name, const Schema &schema);
+
+      ~DatabaseCatalog();
 
   friend class Catalog;
   friend class postgres::Builder;
 };
-} // namespace terrier::catalog
+}  // namespace terrier::catalog

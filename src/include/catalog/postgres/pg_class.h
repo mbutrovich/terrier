@@ -19,24 +19,29 @@ namespace terrier::catalog::postgres {
  * catalog specification and columns of the form "REL_[name]_COL_OID" are
  * terrier-specific addtions (generally pointers to internal objects).
  */
-#define RELOID_COL_OID col_oid_t(1)         // INTEGER (pkey)
-#define RELNAME_COL_OID col_oid_t(2)        // VARCHAR
-#define RELNAMESPACE_COL_OID col_oid_t(3)   // INTEGER (fkey: pg_namespace)
-#define RELKIND_COL_OID col_oid_t(4)        // CHAR
-#define REL_SCHEMA_COL_OID col_oid_t(5)     // BIGINT (assumes 64-bit pointers)
-#define REL_PTR_COL_OID col_oid_t(6)        // BIGINT (assumes 64-bit pointers)
-#define REL_NEXTCOLOID_COL_OID col_oid_t(7) // INTEGER
+#define RELOID_COL_OID col_oid_t(1)          // INTEGER (pkey)
+#define RELNAME_COL_OID col_oid_t(2)         // VARCHAR
+#define RELNAMESPACE_COL_OID col_oid_t(3)    // INTEGER (fkey: pg_namespace)
+#define RELKIND_COL_OID col_oid_t(4)         // CHAR
+#define REL_SCHEMA_COL_OID col_oid_t(5)      // BIGINT (assumes 64-bit pointers)
+#define REL_PTR_COL_OID col_oid_t(6)         // BIGINT (assumes 64-bit pointers)
+#define REL_NEXTCOLOID_COL_OID col_oid_t(7)  // INTEGER
+#define PG_CLASS_ALL_COL_OIDS                                                                                    \
+  {                                                                                                              \
+    RELOID_COL_OID, RELNAME_COL_OID, RELNAMESPACE_COL_OID, RELKIND_COL_OID, REL_SCHEMA_COL_OID, REL_PTR_COL_OID, \
+        REL_NEXTCOLOID_COL_OID                                                                                   \
+  }
 
 enum class ClassKind : char {
   REGULAR_TABLE = 'r',
   INDEX = 'i',
-  SEQUENCE = 'S',
+  SEQUENCE = 'S',  // yes, this really is the only capitalized one. Ask postgres wtf.
   VIEW = 'v',
   MATERIALIZED_VIEW = 'm',
   COMPOSITE_TYPE = 'c',
   TOAST_TABLE = 't',
   FOREIGN_TABLE = 'f',
-}
+};
 
 /**
  * This is a thin wrapper around projections into pg_class.  The interface
@@ -78,9 +83,7 @@ class ClassEntry {
    * @warning This call assumes constraint checks (i.e. OID and name uniqueness)
    * have already occurred and does not perform any additional checks.
    */
-  storage::TupleSlot Insert() {
-    return table_->Insert(txn_, row_);
-  }
+  storage::TupleSlot Insert() { return table_->Insert(txn_, row_); }
 
   /**
    * Applies the updates staged in the entry to the originally selected slot
@@ -92,9 +95,7 @@ class ClassEntry {
    * implementation because all columns are indexed.  It is included only to
    * provide a stable API as more of Postgres' catalog is added over time.
    */
-  bool Update() {
-    return table_->Update(txn_, slot_, row_);
-  }
+  bool Update() { return table_->Update(txn_, slot_, row_); }
 
   /**
    * Logically deletes the previously selected entry from the type table
@@ -104,24 +105,19 @@ class ClassEntry {
    * for ensuring all references to the deleted type are removed prior
    * to committing.  Failure would result in objects being unreachable by name.
    */
-  bool Delete() {
-    return table_->Delete(txn_, slot_);
-  }
+  bool Delete() { return table_->Delete(txn_, slot_); }
 
   /**
    * Sets the corresponding field of the entry to null
    * @param column OID of the field
    */
-  void SetNull(col_oid_t column) {
-    row_.SetNull(projection_map_[column]);
-  }
+  void SetNull(col_oid_t column) { row_.SetNull(projection_map_[column]); }
 
   /**
    * @return the OID assigned to the given entry
    */
   type_oid_t GetOid() {
-    type_oid_t *oid_ptr =
-      reinterpret_cast<type_oid_t *>(row_.AccessWithNullCheck(projection_map_[RELOID_COL_OID]));
+    type_oid_t *oid_ptr = reinterpret_cast<type_oid_t *>(row_.AccessWithNullCheck(projection_map_[RELOID_COL_OID]));
     return (oid_ptr == nullptr) ? INVALID_TYPE_OID : *oid_ptr;
   }
 
@@ -182,7 +178,6 @@ class ClassEntry {
    */
   void SetTableSchema(Schema *schema);
 
-
   /**
    * @return the pointer to the schema object associated with the entry
    */
@@ -205,7 +200,6 @@ class ClassEntry {
    */
   void SetIndexKeySchema(IndexKeySchema *schema);
 
-
   /**
    * @return the pointer to the schema object associated with the entry
    */
@@ -226,4 +220,4 @@ class ClassEntry {
 
   storage::TupleSlot slot_;
 };
-} // namespace terrier::catalog::postgres
+}  // namespace terrier::catalog::postgres

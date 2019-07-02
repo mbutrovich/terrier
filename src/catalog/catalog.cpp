@@ -85,7 +85,7 @@ bool Catalog::DeleteDatabase(transaction::TransactionContext *txn, db_oid_t data
   });
 }
 
-bool Catalog::RenameDatabase(transaction::TransactionContext *txn, db_oid_t database, const std::string *name) {
+bool Catalog::RenameDatabase(transaction::TransactionContext *txn, db_oid_t database, const std::string &name) {
   // Name is indexed so this is a delete and insert at the physical level
   auto *dbc = DeleteDatabaseEntry(txn, database);
   if (dbc == nullptr) return false;
