@@ -31,7 +31,43 @@ table_oid_t DatabaseCatalog::CreateTable(transaction::TransactionContext *txn, n
 
 // bool DatabaseCatalog::DeleteTable(transaction::TransactionContext *txn, table_oid_t table);
 
-// table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, namespace_oid_t ns, const std::string &name);
+table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, namespace_oid_t ns, const std::string &name) {
+  std::vector<storage::TupleSlot> index_results;
+  auto name_pri = classes_name_index_->GetProjectedRowInitializer();
+
+  // Create the necessary varlen for storage operations
+  storage::VarlenEntry name_varlen;
+  if (name.size() > storage::VarlenEntry::InlineThreshold()) {
+    byte *contents = common::AllocationUtil::AllocateAligned(name.size());
+    std::memcpy(contents, name.data(), name.size());
+    name_varlen = storage::VarlenEntry::Create(contents, name.size(), true);
+  } else {
+    name_varlen = storage::VarlenEntry::CreateInline(reinterpret_cast<const byte *const>(name.data()), name.size());
+  }
+
+  // Name is a larger projected row (16-byte key vs 4-byte key), sow we can reuse
+  // the buffer for both index operations if we allocate to the larger one.
+  auto *const buffer = common::AllocationUtil::AllocateAligned(name_pri.ProjectedRowSize());
+  auto pr = name_pri.InitializeRow(buffer);
+  *(reinterpret_cast<storage::VarlenEntry *>(pr->AccessForceNotNull(0))) = name_varlen;
+
+  classes_name_index_->ScanKey(*txn, *pr, &index_results);
+  if (index_results.empty())
+  {
+    delete[] buffer;
+    return INVALID_TABLE_OID;
+  }
+  TERRIER_ASSERT(index_results.size() == 1, "Table name not unique in index");
+
+  const auto table_pri = classes_->InitializerForProjectedRow({RELOID_COL_OID}).first;
+  pr = table_pri.InitializeRow(buffer);
+  const auto result UNUSED_ATTRIBUTE = classes_->Select(txn, index_results[0], pr);
+  TERRIER_ASSERT(result, "Index already verified visibility. This shouldn't fail.");
+  const auto table_oid = *(reinterpret_cast<const table_oid_t *const>(pr->AccessForceNotNull(0)));
+  delete[] buffer;
+  return table_oid;
+}
+
 
 // bool DatabaseCatalog::RenameTable(transaction::TransactionContext *txn, table_oid_t table, const std::string &name);
 
@@ -206,8 +242,7 @@ void DatabaseCatalog::InsertType(transaction::TransactionContext *txn, type::Typ
 
   // Populate type
   offset = col_map[TYPTYPE_COL_OID];
-  // TODO(Gus): make sure this cast works
-  uint8_t type = reinterpret_cast<uint8_t>(type_category);
+  uint8_t type = static_cast<uint8_t>(type_category);
   memcpy(delta->AccessForceNotNull(offset), &type, sizeof(uint8_t) /* TINYINT */);
 
   // Insert into table

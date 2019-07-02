@@ -105,35 +105,28 @@ db_oid_t Catalog::GetDatabaseOid(transaction::TransactionContext *txn, const std
     std::memcpy(contents, name.data(), name.size());
     name_varlen = storage::VarlenEntry::Create(contents, name.size(), true);
   } else {
-    name_varlen = storage::VarlenEntry::CreateInline(name.data(), name.size());
+    name_varlen = storage::VarlenEntry::CreateInline(reinterpret_cast<const byte *const>(name.data()), name.size());
   }
 
   // Name is a larger projected row (16-byte key vs 4-byte key), sow we can reuse
   // the buffer for both index operations if we allocate to the larger one.
-  byte *buffer = common::AllocationUtil::AllocateAligned(name_pri.ProjectedRowSize());
-  auto pr = name_pri.Initialize(buffer);
-  auto *varlen = reinterpret_cast<storage::VarlenEntry *>pr->AccessForceNotNull(0);
-  *varlen = name_varlen;
+  auto *const buffer = common::AllocationUtil::AllocateAligned(name_pri.ProjectedRowSize());
+  auto pr = name_pri.InitializeRow(buffer);
+  *(reinterpret_cast<storage::VarlenEntry *>(pr->AccessForceNotNull(0))) = name_varlen;
 
-  databases_oid_index_->ScanKey(txn, pr, &index_results);
+  databases_oid_index_->ScanKey(*txn, *pr, &index_results);
   if (index_results.empty())
   {
     delete[] buffer;
-    return nullptr;
+    return INVALID_DATABASE_OID;
   }
   TERRIER_ASSERT(index_results.size() == 1, "Database name not unique in index");
 
-  std::vector<col_oid_t> table_oids;
-  table_oids.emplace_back(DATOID_COL_OID);
-  auto table_pri = databases_->InitializerForProjectedRow(table_oids).first;
-  pr = table_pri.Initialize(buffer);
-  if (!databases_->Select(txn, index_results[0], pr)) {
-    // Nothing visible
-    delete[] buffer;
-    return INVALID_DATABASE_OID;
-  }
-
-  auto db_oid = *reinterpret_cast<db_oid_t *>pr->AccessForceNotNull(0);
+  const auto table_pri = databases_->InitializerForProjectedRow({DATOID_COL_OID}).first;
+  pr = table_pri.InitializeRow(buffer);
+  const auto result UNUSED_ATTRIBUTE = databases_->Select(txn, index_results[0], pr);
+  TERRIER_ASSERT(result, "Index already verified visibility. This shouldn't fail.");
+  const auto db_oid = *(reinterpret_cast<const db_oid_t *const>(pr->AccessForceNotNull(0)));
   delete[] buffer;
   return db_oid;
 }
