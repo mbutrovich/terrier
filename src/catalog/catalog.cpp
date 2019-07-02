@@ -100,10 +100,11 @@ db_oid_t Catalog::GetDatabaseOid(transaction::TransactionContext *txn, const std
 
   // Create the necessary varlen for storage operations
   storage::VarlenEntry name_varlen;
+  byte *varlen_contents = nullptr;
   if (name.size() > storage::VarlenEntry::InlineThreshold()) {
-    byte *contents = common::AllocationUtil::AllocateAligned(name.size());
-    std::memcpy(contents, name.data(), name.size());
-    name_varlen = storage::VarlenEntry::Create(contents, name.size(), true);
+    varlen_contents = common::AllocationUtil::AllocateAligned(name.size());
+    std::memcpy(varlen_contents, name.data(), name.size());
+    name_varlen = storage::VarlenEntry::Create(varlen_contents, name.size(), true);
   } else {
     name_varlen = storage::VarlenEntry::CreateInline(reinterpret_cast<const byte *const>(name.data()), name.size());
   }
@@ -115,6 +116,10 @@ db_oid_t Catalog::GetDatabaseOid(transaction::TransactionContext *txn, const std
   *(reinterpret_cast<storage::VarlenEntry *>(pr->AccessForceNotNull(0))) = name_varlen;
 
   databases_oid_index_->ScanKey(*txn, *pr, &index_results);
+  if (varlen_contents != nullptr) {
+    delete[] varlen_contents;
+  }
+
   if (index_results.empty())
   {
     delete[] buffer;

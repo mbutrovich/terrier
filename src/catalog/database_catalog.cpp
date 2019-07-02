@@ -29,19 +29,23 @@ table_oid_t DatabaseCatalog::CreateTable(transaction::TransactionContext *txn, n
   return CreateTableEntry(txn, table_oid, ns, name, schema) ? table_oid : INVALID_TABLE_OID;
 }
 
-// bool DatabaseCatalog::DeleteTable(transaction::TransactionContext *txn, table_oid_t table);
+bool DatabaseCatalog::DeleteTable(transaction::TransactionContext *const txn, const table_oid_t table) {
+  std::vector<storage::TupleSlot> index_results;
 
-table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, namespace_oid_t ns,
+}
+
+table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *const txn, const namespace_oid_t ns,
                                          const std::string &name) {
   std::vector<storage::TupleSlot> index_results;
   auto name_pri = classes_name_index_->GetProjectedRowInitializer();
 
   // Create the necessary varlen for storage operations
   storage::VarlenEntry name_varlen;
+  byte *varlen_contents = nullptr;
   if (name.size() > storage::VarlenEntry::InlineThreshold()) {
-    byte *contents = common::AllocationUtil::AllocateAligned(name.size());
-    std::memcpy(contents, name.data(), name.size());
-    name_varlen = storage::VarlenEntry::Create(contents, name.size(), true);
+    varlen_contents = common::AllocationUtil::AllocateAligned(name.size());
+    std::memcpy(varlen_contents, name.data(), name.size());
+    name_varlen = storage::VarlenEntry::Create(varlen_contents, name.size(), true);
   } else {
     name_varlen = storage::VarlenEntry::CreateInline(reinterpret_cast<const byte *const>(name.data()), name.size());
   }
@@ -53,6 +57,10 @@ table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, n
   *(reinterpret_cast<storage::VarlenEntry *>(pr->AccessForceNotNull(0))) = name_varlen;
 
   classes_name_index_->ScanKey(*txn, *pr, &index_results);
+  if (varlen_contents != nullptr) {
+    delete[] varlen_contents;
+  }
+
   if (index_results.empty()) {
     delete[] buffer;
     return INVALID_TABLE_OID;
