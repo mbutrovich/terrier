@@ -31,7 +31,8 @@ table_oid_t DatabaseCatalog::CreateTable(transaction::TransactionContext *txn, n
 
 // bool DatabaseCatalog::DeleteTable(transaction::TransactionContext *txn, table_oid_t table);
 
-table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, namespace_oid_t ns, const std::string &name) {
+table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, namespace_oid_t ns,
+                                         const std::string &name) {
   std::vector<storage::TupleSlot> index_results;
   auto name_pri = classes_name_index_->GetProjectedRowInitializer();
 
@@ -52,22 +53,29 @@ table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *txn, n
   *(reinterpret_cast<storage::VarlenEntry *>(pr->AccessForceNotNull(0))) = name_varlen;
 
   classes_name_index_->ScanKey(*txn, *pr, &index_results);
-  if (index_results.empty())
-  {
+  if (index_results.empty()) {
     delete[] buffer;
     return INVALID_TABLE_OID;
   }
   TERRIER_ASSERT(index_results.size() == 1, "Table name not unique in index");
 
-  const auto table_pri = classes_->InitializerForProjectedRow({RELOID_COL_OID}).first;
+  const auto table_pri = classes_->InitializerForProjectedRow({RELOID_COL_OID, RELKIND_COL_OID}).first;
+  TERRIER_ASSERT(table_pri.ProjectedRowSize() <= name_pri.ProjectedRowSize(),
+                 "I want to reuse this buffer because I'm lazy and malloc is slow but it needs to be big enough.");
   pr = table_pri.InitializeRow(buffer);
   const auto result UNUSED_ATTRIBUTE = classes_->Select(txn, index_results[0], pr);
   TERRIER_ASSERT(result, "Index already verified visibility. This shouldn't fail.");
+
+  // This code assumes ordering of attribute by size in the ProjectedRow (size of kind is smaller than size of oid)
+  if (*(reinterpret_cast<const postgres::ClassKind *const>(pr->AccessForceNotNull(1))) != postgres::ClassKind::REGULAR_TABLE) {
+    // User called GetTableOid on an object that doesn't have type REGULAR_TABLE
+    return INVALID_TABLE_OID;
+  }
+
   const auto table_oid = *(reinterpret_cast<const table_oid_t *const>(pr->AccessForceNotNull(0)));
   delete[] buffer;
   return table_oid;
 }
-
 
 // bool DatabaseCatalog::RenameTable(transaction::TransactionContext *txn, table_oid_t table, const std::string &name);
 
