@@ -96,6 +96,25 @@ class DatabaseCatalog {
   bool RenameTable(transaction::TransactionContext *txn, table_oid_t table, const std::string &name);
 
   /**
+   * Inform the catalog of where the underlying storage for a table is
+   * @param table OID in the catalog
+   * @param table_ptr to the memory where the storage is
+   * @return whether the operation was successful
+   * @warning The table pointer that is passed in must be on the heap as the
+   * catalog will take ownership of it and schedule its deletion with the GC
+   * at the appropriate time.
+   */
+  bool SetTablePointer(transaction::TransactionContext *txn, namespace_oid_t ns, table_oid_t table, storage::SqlTable *table_ptr);
+
+  /**
+   * Obtain the storage pointer for a SQL table
+   * @param table to which we want the storage object
+   * @return the storage object corresponding to the passed OID
+   */
+  common::ManagedPointer<storage::SqlTable> GetTable(transaction::TransactionContext *txn, namespace_oid_t ns, table_oid_t table);
+
+
+  /**
    * Apply a new schema to the given table.  The changes should modify the latest
    * schema as provided by the catalog.  There is no guarantee that the OIDs for
    * modified columns will be stable across a schema change.
@@ -174,31 +193,22 @@ class DatabaseCatalog {
   const IndexSchema &GetIndexSchema(transaction::TransactionContext *txn, index_oid_t index);
 
   /**
-   * Creates a new namespace within the database
-   * @param txn for the operation
-   * @param name of the new namespace
-   * @return OID of the new namespace or INVALID_NAMESPACE_OID if the operation failed
-   */
-  namespace_oid_t CreateNamespace(transaction::TransactionContext *txn, const std::string &name);
+ * Inform the catalog of where the underlying implementation of the index is
+ * @param index OID in the catalog
+ * @param index_ptr to the memory where the index is
+ * @return whether the operation was successful
+ * @warning The index pointer that is passed in must be on the heap as the
+ * catalog will take ownership of it and schedule its deletion with the GC
+ * at the appropriate time.
+ */
+  bool SetIndexPointer(transaction::TransactionContext *txn, index_oid_t index, storage::index::Index *index_ptr);
 
   /**
-   * Deletes the namespace and any objects assigned to the namespace.  The
-   * 'public' namespace cannot be deleted.  This operation will fail if any
-   * objects within the namespace cannot be deleted (i.e. write-write conflicts
-   * exist).
-   * @param txn for the operation
-   * @param ns OID to be deleted
-   * @param true if the deletion succeeded, otherwise false
+   * Obtain the pointer to the index
+   * @param index to which we want a pointer
+   * @return the pointer to the index
    */
-  bool DeleteNamespace(transaction::TransactionContext *txn, namespace_oid_t ns);
-
-  /**
-   * Resolve a namespace name to its OID.
-   * @param txn for the operation
-   * @param name of the namespace
-   * @return OID of the namespace or INVALID_NAMESPACE_OID if it does not exist
-   */
-  namespace_oid_t GetNamespaceOid(transaction::TransactionContext *txn, const std::string &name);
+  common::ManagedPointer<storage::index::Index> GetIndex(transaction::TransactionContext *txn, index_oid_t index);
 
  private:
   storage::SqlTable *namespaces_;
@@ -240,6 +250,8 @@ class DatabaseCatalog {
   DatabaseCatalog(db_oid_t oid) : db_oid_(oid) {}
 
   void TearDown(transaction::TransactionContext *txn);
+  bool CreateTableEntry(transaction::TransactionContext *txn, table_oid_t table_oid, namespace_oid_t ns,
+                        const std::string &name, const Schema &schema);
 
   friend class Catalog;
   friend class postgres::Builder;
