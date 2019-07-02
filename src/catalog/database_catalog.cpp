@@ -34,8 +34,8 @@ bool DatabaseCatalog::DeleteTable(transaction::TransactionContext *const txn, co
 
 }
 
-table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *const txn, const namespace_oid_t ns,
-                                         const std::string &name) {
+std::pair<generic_oid_t, postgres::ClassKind> DatabaseCatalog::getClassOidKind(transaction::TransactionContext *const txn, const namespace_oid_t ns,
+                                                               const std::string &name) {
   std::vector<storage::TupleSlot> index_results;
   auto name_pri = classes_name_index_->GetProjectedRowInitializer();
 
@@ -63,9 +63,10 @@ table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *const 
 
   if (index_results.empty()) {
     delete[] buffer;
-    return INVALID_TABLE_OID;
+    // If the OID is invalid, we don't care the class kind and return a random one.
+    return std::make_pair(INVALID_GENERIC_OID, postgres::ClassKind::REGULAR_TABLE);
   }
-  TERRIER_ASSERT(index_results.size() == 1, "Table name not unique in index");
+  TERRIER_ASSERT(index_results.size() == 1, "name not unique in classes_name_index_");
 
   const auto table_pri = classes_->InitializerForProjectedRow({RELOID_COL_OID, RELKIND_COL_OID}).first;
   TERRIER_ASSERT(table_pri.ProjectedRowSize() <= name_pri.ProjectedRowSize(),
@@ -75,14 +76,22 @@ table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *const 
   TERRIER_ASSERT(result, "Index already verified visibility. This shouldn't fail.");
 
   // This code assumes ordering of attribute by size in the ProjectedRow (size of kind is smaller than size of oid)
-  if (*(reinterpret_cast<const postgres::ClassKind *const>(pr->AccessForceNotNull(1))) != postgres::ClassKind::REGULAR_TABLE) {
+  auto oid = *(reinterpret_cast<const generic_oid_t *const>(pr->AccessForceNotNull(0)));
+  auto kind = *(reinterpret_cast<const postgres::ClassKind *const>(pr->AccessForceNotNull(1)));
+
+  delete[] buffer;
+
+  return std::make_pair(oid, kind);
+}
+
+table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *const txn, const namespace_oid_t ns,
+                                         const std::string &name) {
+  auto oid_pair = getClassOidKind(txn, ns, name);
+  if (oid_pair.second != postgres::ClassKind::REGULAR_TABLE) {
     // User called GetTableOid on an object that doesn't have type REGULAR_TABLE
     return INVALID_TABLE_OID;
   }
-
-  const auto table_oid = *(reinterpret_cast<const table_oid_t *const>(pr->AccessForceNotNull(0)));
-  delete[] buffer;
-  return table_oid;
+  return table_oid_t(oid_pair.first);
 }
 
 // bool DatabaseCatalog::RenameTable(transaction::TransactionContext *txn, table_oid_t table, const std::string &name);
@@ -100,7 +109,14 @@ table_oid_t DatabaseCatalog::GetTableOid(transaction::TransactionContext *const 
 
 // bool DatabaseCatalog::DeleteIndex(transaction::TransactionContext *txn, index_oid_t index);
 
-// index_oid_t DatabaseCatalog::GetIndexOid(transaction::TransactionContext *txn, namespace_oid_t ns, const std::string &name);
+index_oid_t DatabaseCatalog::GetIndexOid(transaction::TransactionContext *txn, namespace_oid_t ns, const std::string &name) {
+  auto oid_pair = getClassOidKind(txn, ns, name);
+  if (oid_pair.second != postgres::ClassKind::INDEX) {
+    // User called GetIndexOid on an object that doesn't have type INDEX
+    return INVALID_INDEX_OID;
+  }
+  return index_oid_t(oid_pair.first);
+}
 
 // const IndexSchema &DatabaseCatalog::GetIndexSchema(transaction::TransactionContext *txn, index_oid_t index);
 

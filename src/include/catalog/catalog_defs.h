@@ -10,6 +10,7 @@ namespace terrier::catalog {
 #define NULL_OID 0  // error return value
 #define START_OID 1001
 
+#define INVALID_GENERIC_OID generic_oid_t(NULL_OID)
 #define INVALID_COLUMN_OID col_oid_t(NULL_OID)
 #define INVALID_DATABASE_OID db_oid_t(NULL_OID)
 #define INVALID_INDEX_OID index_oid_t(NULL_OID)
@@ -22,6 +23,7 @@ namespace terrier::catalog {
 #define DEFAULT_DATABASE "terrier"
 
 // in name order
+typedef uint32_t generic_oid_t;
 STRONG_TYPEDEF(col_oid_t, uint32_t);
 STRONG_TYPEDEF(db_oid_t, uint32_t);
 STRONG_TYPEDEF(index_oid_t, uint32_t);
