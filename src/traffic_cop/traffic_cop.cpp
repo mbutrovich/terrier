@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "folly/tracing/StaticTracepoint.h"
 #include "binder/bind_node_visitor.h"
 #include "binder/binder_util.h"
 #include "catalog/catalog.h"
@@ -22,16 +23,8 @@
 #include "network/connection_context.h"
 #include "network/postgres/portal.h"
 #include "network/postgres/postgres_packet_writer.h"
-#include "network/postgres/postgres_protocol_interpreter.h"
 #include "network/postgres/statement.h"
-#include "optimizer/abstract_optimizer.h"
 #include "optimizer/cost_model/trivial_cost_model.h"
-#include "optimizer/operator_node.h"
-#include "optimizer/optimizer.h"
-#include "optimizer/properties.h"
-#include "optimizer/property_set.h"
-#include "optimizer/query_to_operator_transformer.h"
-#include "optimizer/statistics/stats_storage.h"
 #include "parser/drop_statement.h"
 #include "parser/postgresparser.h"
 #include "parser/variable_set_statement.h"
@@ -50,6 +43,9 @@ static void CommitCallback(void *const callback_arg) {
 }
 
 void TrafficCop::BeginTransaction(const common::ManagedPointer<network::ConnectionContext> connection_ctx) const {
+
+  FOLLY_SDT(TrafficCop,BeginTransactionBEGIN,15721);
+
   TERRIER_ASSERT(connection_ctx->TransactionState() == network::NetworkTransactionStateType::IDLE,
                  "Invalid ConnectionContext state, already in a transaction.");
   const auto txn = txn_manager_->BeginTransaction();
