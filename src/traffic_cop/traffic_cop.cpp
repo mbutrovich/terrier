@@ -6,7 +6,6 @@
 #include <utility>
 #include <vector>
 
-#include "folly/tracing/StaticTracepoint.h"
 #include "binder/bind_node_visitor.h"
 #include "binder/binder_util.h"
 #include "catalog/catalog.h"
@@ -43,9 +42,6 @@ static void CommitCallback(void *const callback_arg) {
 }
 
 void TrafficCop::BeginTransaction(const common::ManagedPointer<network::ConnectionContext> connection_ctx) const {
-
-  FOLLY_SDT(TrafficCop,BeginTransactionBEGIN,15721);
-
   TERRIER_ASSERT(connection_ctx->TransactionState() == network::NetworkTransactionStateType::IDLE,
                  "Invalid ConnectionContext state, already in a transaction.");
   const auto txn = txn_manager_->BeginTransaction();
