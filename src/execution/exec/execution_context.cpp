@@ -3,6 +3,7 @@
 #include "brain/operating_unit.h"
 #include "common/thread_context.h"
 #include "execution/sql/value.h"
+#include "folly/tracing/StaticTracepoint.h"
 #include "metrics/metrics_store.h"
 #include "parser/expression/constant_value_expression.h"
 
@@ -42,34 +43,35 @@ void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) {
 }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
-  constexpr metrics::MetricsComponent component = metrics::MetricsComponent::EXECUTION_PIPELINE;
-
-  if (common::thread_context.metrics_store_ != nullptr &&
-      common::thread_context.metrics_store_->ComponentToRecord(component)) {
-    // Start the resource tracker.
-    common::thread_context.resource_tracker_.Start();
-    mem_tracker_->Reset();
-    // Save a copy of the pipeline's features as the features will be updated in-place later.
-    TERRIER_ASSERT(pipeline_operating_units_ != nullptr, "PipelineOperatingUnits should not be null");
-    current_pipeline_features_id_ = pipeline_id;
-    current_pipeline_features_ = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
-  }
+  //  constexpr metrics::MetricsComponent component = metrics::MetricsComponent::EXECUTION_PIPELINE;
+  //
+  //  if (common::thread_context.metrics_store_ != nullptr &&
+  //      common::thread_context.metrics_store_->ComponentToRecord(component)) {
+  //    mem_tracker_->Reset();
+  //    // Save a copy of the pipeline's features as the features will be updated in-place later.
+  //    TERRIER_ASSERT(pipeline_operating_units_ != nullptr, "PipelineOperatingUnits should not be null");
+  //    current_pipeline_features_id_ = pipeline_id;
+  //    current_pipeline_features_ = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
+  //  }
+  FOLLY_SDT(, pipeline__start);
 }
 
 void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pipeline_id) {
-  if (common::thread_context.metrics_store_ != nullptr && common::thread_context.resource_tracker_.IsRunning()) {
-    common::thread_context.resource_tracker_.Stop();
-    auto mem_size = mem_tracker_->GetAllocatedSize();
-    if (memory_use_override_) {
-      mem_size = memory_use_override_value_;
-    }
-
-    common::thread_context.resource_tracker_.SetMemory(mem_size);
-    const auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
-
-    common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
-                                                              std::move(current_pipeline_features_), resource_metrics);
-  }
+  //  if (common::thread_context.metrics_store_ != nullptr && common::thread_context.resource_tracker_.IsRunning()) {
+  //    common::thread_context.resource_tracker_.Stop();
+  //    auto mem_size = mem_tracker_->GetAllocatedSize();
+  //    if (memory_use_override_) {
+  //      mem_size = memory_use_override_value_;
+  //    }
+  //
+  //    common::thread_context.resource_tracker_.SetMemory(mem_size);
+  //    const auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
+  //
+  //    common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
+  //                                                              std::move(current_pipeline_features_),
+  //                                                              resource_metrics);
+  //  }
+  FOLLY_SDT(, pipeline__done);
 }
 
 void ExecutionContext::GetFeature(uint32_t *value, pipeline_id_t pipeline_id, feature_id_t feature_id,
