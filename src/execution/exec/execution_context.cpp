@@ -9,6 +9,9 @@
 
 namespace terrier::execution::exec {
 
+FOLLY_SDT_DEFINE_SEMAPHORE(, pipeline__start)
+FOLLY_SDT_DEFINE_SEMAPHORE(, pipeline__done)
+
 uint32_t ExecutionContext::ComputeTupleSize(const planner::OutputSchema *schema) {
   uint32_t tuple_size = 0;
   for (const auto &col : schema->GetColumns()) {
@@ -43,35 +46,61 @@ void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) {
 }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
-  //  constexpr metrics::MetricsComponent component = metrics::MetricsComponent::EXECUTION_PIPELINE;
-  //
-  //  if (common::thread_context.metrics_store_ != nullptr &&
-  //      common::thread_context.metrics_store_->ComponentToRecord(component)) {
-  //    mem_tracker_->Reset();
-  //    // Save a copy of the pipeline's features as the features will be updated in-place later.
-  //    TERRIER_ASSERT(pipeline_operating_units_ != nullptr, "PipelineOperatingUnits should not be null");
-  //    current_pipeline_features_id_ = pipeline_id;
-  //    current_pipeline_features_ = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
-  //  }
+  // TODO(Matt): use the USDT semaphore
+
+  mem_tracker_->Reset();
+  // Save a copy of the pipeline's features as the features will be updated in-place later.
+  TERRIER_ASSERT(pipeline_operating_units_ != nullptr, "PipelineOperatingUnits should not be null");
+  current_pipeline_features_id_ = pipeline_id;
+  current_pipeline_features_ = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
   FOLLY_SDT(, pipeline__start);
 }
 
+#define MAX_FEATURES 8
+
+struct features {
+  uint32_t query_id;
+  uint32_t pipeline_id;
+  uint8_t execution_mode;
+  uint8_t num_features;
+  uint8_t features[MAX_FEATURES];
+  uint32_t est_output_rows[MAX_FEATURES];
+  uint16_t key_sizes[MAX_FEATURES];
+  uint8_t num_keys[MAX_FEATURES];
+  uint8_t est_cardinalities[MAX_FEATURES];
+  uint8_t mem_factor[MAX_FEATURES];
+};
+
 void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pipeline_id) {
-  //  if (common::thread_context.metrics_store_ != nullptr && common::thread_context.resource_tracker_.IsRunning()) {
-  //    common::thread_context.resource_tracker_.Stop();
-  //    auto mem_size = mem_tracker_->GetAllocatedSize();
-  //    if (memory_use_override_) {
-  //      mem_size = memory_use_override_value_;
-  //    }
-  //
-  //    common::thread_context.resource_tracker_.SetMemory(mem_size);
-  //    const auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
-  //
-  //    common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
-  //                                                              std::move(current_pipeline_features_),
-  //                                                              resource_metrics);
+  //  auto mem_size = mem_tracker_->GetAllocatedSize();
+  //  if (memory_use_override_) {
+  //    mem_size = memory_use_override_value_;
   //  }
-  FOLLY_SDT(, pipeline__done);
+  //
+  //  common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
+  //                                                            std::move(current_pipeline_features_),
+  //                                                            resource_metrics);
+  if (FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
+    struct features feats = {.query_id = query_id.UnderlyingValue(),
+                             .pipeline_id = pipeline_id.UnderlyingValue(),
+                             .execution_mode = execution_mode_,
+                             .num_features = static_cast<uint8_t>(current_pipeline_features_.size())};
+
+    for (uint8_t i = 0; i < feats.num_features; i++) {
+      TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
+      const auto &op_feature = current_pipeline_features_[i];
+      feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
+      feats.est_output_rows[i] = op_feature.GetNumRows();
+      feats.key_sizes[i] = op_feature.GetKeySize();
+      feats.num_keys[i] = op_feature.GetNumKeys();
+      feats.est_cardinalities[i] = op_feature.GetCardinality();
+      feats.mem_factor[i] = op_feature.GetMemFactor();
+    }
+
+    FOLLY_SDT_WITH_SEMAPHORE(, pipeline__done, &feats);
+  }
+
+  current_pipeline_features_.clear();
 }
 
 void ExecutionContext::GetFeature(uint32_t *value, pipeline_id_t pipeline_id, feature_id_t feature_id,

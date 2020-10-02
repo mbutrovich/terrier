@@ -2,7 +2,7 @@
 
 namespace terrier::brain {
 
-enum class ExecutionOperatingUnitType : uint32_t {
+enum class ExecutionOperatingUnitType : uint8_t {
   /** INVALID is associated with translators that are INVALID no matter what. */
   INVALID,
 
