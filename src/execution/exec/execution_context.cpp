@@ -74,10 +74,6 @@ struct features {
 };
 
 void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pipeline_id) {
-  //  auto mem_size = mem_tracker_->GetAllocatedSize();
-  //  if (memory_use_override_) {
-  //    mem_size = memory_use_override_value_;
-  //  }
   //
   //  common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
   //                                                            std::move(current_pipeline_features_),
@@ -87,9 +83,6 @@ void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pip
                              .pipeline_id = pipeline_id.UnderlyingValue(),
                              .execution_mode = execution_mode_,
                              .num_features = static_cast<uint8_t>(current_pipeline_features_.size())};
-
-    std::cout << feats.query_id << " " << feats.pipeline_id << " " << static_cast<uint32_t>(feats.execution_mode)
-              << std::endl;
 
     for (uint8_t i = 0; i < feats.num_features; i++) {
       TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
@@ -101,6 +94,8 @@ void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pip
       feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
       feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor());
     }
+
+    const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     FOLLY_SDT_WITH_SEMAPHORE(, pipeline__done, &feats);
   }
