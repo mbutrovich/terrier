@@ -1,5 +1,7 @@
 #include "execution/exec/execution_context.h"
 
+#include <iostream>
+
 #include "brain/operating_unit.h"
 #include "common/thread_context.h"
 #include "execution/sql/value.h"
@@ -59,10 +61,10 @@ void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
 #define MAX_FEATURES 8
 
 struct features {
-  uint32_t query_id;
-  uint32_t pipeline_id;
-  uint8_t execution_mode;
-  uint8_t num_features;
+  const uint32_t query_id;
+  const uint32_t pipeline_id;
+  const uint8_t execution_mode;
+  const uint8_t num_features;
   uint8_t features[MAX_FEATURES];
   uint32_t est_output_rows[MAX_FEATURES];
   uint16_t key_sizes[MAX_FEATURES];
@@ -86,15 +88,18 @@ void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pip
                              .execution_mode = execution_mode_,
                              .num_features = static_cast<uint8_t>(current_pipeline_features_.size())};
 
+    std::cout << feats.query_id << " " << feats.pipeline_id << " " << static_cast<uint32_t>(feats.execution_mode)
+              << std::endl;
+
     for (uint8_t i = 0; i < feats.num_features; i++) {
       TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
       const auto &op_feature = current_pipeline_features_[i];
       feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
-      feats.est_output_rows[i] = op_feature.GetNumRows();
-      feats.key_sizes[i] = op_feature.GetKeySize();
-      feats.num_keys[i] = op_feature.GetNumKeys();
-      feats.est_cardinalities[i] = op_feature.GetCardinality();
-      feats.mem_factor[i] = op_feature.GetMemFactor();
+      feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
+      feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
+      feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
+      feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
+      feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor());
     }
 
     FOLLY_SDT_WITH_SEMAPHORE(, pipeline__done, &feats);
