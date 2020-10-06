@@ -48,8 +48,6 @@ void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) {
 }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
-  // TODO(Matt): use the USDT semaphore
-
   mem_tracker_->Reset();
   // Save a copy of the pipeline's features as the features will be updated in-place later.
   TERRIER_ASSERT(pipeline_operating_units_ != nullptr, "PipelineOperatingUnits should not be null");
@@ -65,6 +63,7 @@ struct features {
   const uint32_t pipeline_id;
   const uint8_t execution_mode;
   const uint8_t num_features;
+  const uint64_t memory_bytes;
   uint8_t features[MAX_FEATURES];
   uint32_t est_output_rows[MAX_FEATURES];
   uint16_t key_sizes[MAX_FEATURES];
@@ -73,32 +72,27 @@ struct features {
   uint8_t mem_factor[MAX_FEATURES];
 };
 
-void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pipeline_id) {
-  //
-  //  common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
-  //                                                            std::move(current_pipeline_features_),
-  //                                                            resource_metrics);
-  if (FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
-    struct features feats = {.query_id = query_id.UnderlyingValue(),
-                             .pipeline_id = pipeline_id.UnderlyingValue(),
-                             .execution_mode = execution_mode_,
-                             .num_features = static_cast<uint8_t>(current_pipeline_features_.size())};
+void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id) {
+  const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
-    for (uint8_t i = 0; i < feats.num_features; i++) {
-      TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
-      const auto &op_feature = current_pipeline_features_[i];
-      feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
-      feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
-      feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
-      feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
-      feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
-      feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor());
-    }
+  struct features feats = {.query_id = static_cast<uint32_t>(query_id),
+                           .pipeline_id = static_cast<uint32_t>(pipeline_id),
+                           .execution_mode = execution_mode_,
+                           .num_features = static_cast<uint8_t>(current_pipeline_features_.size()),
+                           .memory_bytes = mem_size};
 
-    const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
-
-    FOLLY_SDT_WITH_SEMAPHORE(, pipeline__done, &feats);
+  for (uint8_t i = 0; i < feats.num_features; i++) {
+    TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
+    const auto &op_feature = current_pipeline_features_[i];
+    feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
+    feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
+    feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
+    feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
+    feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
+    feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor());
   }
+
+  FOLLY_SDT(, pipeline__done, &feats);
 
   current_pipeline_features_.clear();
 }
