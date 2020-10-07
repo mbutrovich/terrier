@@ -70,6 +70,7 @@ struct features {
   uint8_t num_keys[MAX_FEATURES];
   uint8_t est_cardinalities[MAX_FEATURES];
   uint8_t mem_factor[MAX_FEATURES];
+  uint8_t num_loops[MAX_FEATURES];
 };
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id) {
@@ -89,7 +90,8 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
     feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
     feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
     feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
-    feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor());
+    feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor() * UINT8_MAX);
+    feats.num_loops[i] = static_cast<uint8_t>(op_feature.GetNumLoops());
   }
 
   FOLLY_SDT(, pipeline__done, &feats);
