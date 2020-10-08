@@ -53,25 +53,10 @@ void ExecutionContext::AggregateMetricsThread() {
 }
 
 void ExecutionContext::StartResourceTracker(metrics::MetricsComponent component) {
-  TERRIER_ASSERT(component == metrics::MetricsComponent::EXECUTION,
-                 "StartResourceTracker() invoked with incorrect MetricsComponent");
-
-  if (common::thread_context.metrics_store_ != nullptr &&
-      common::thread_context.metrics_store_->ComponentToRecord(component)) {
-    // start the operating unit resource tracker
-    common::thread_context.resource_tracker_.Start();
-    mem_tracker_->Reset();
-  }
+  TERRIER_ASSERT(false, "this is unused?");
 }
 
-void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) {
-  if (common::thread_context.metrics_store_ != nullptr && common::thread_context.resource_tracker_.IsRunning()) {
-    common::thread_context.resource_tracker_.Stop();
-    common::thread_context.resource_tracker_.SetMemory(mem_tracker_->GetAllocatedSize());
-    const auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
-    common::thread_context.metrics_store_->RecordExecutionData(name, len, execution_mode_, resource_metrics);
-  }
-}
+void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { TERRIER_ASSERT(false, "this is unused?"); }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
   constexpr metrics::MetricsComponent component = metrics::MetricsComponent::EXECUTION_PIPELINE;

@@ -2390,8 +2390,8 @@ void InitializeRunnersState() {
                                                                       exec_settings, db_main->GetMetricsManager());
 
   execution::sql::TableGenerator table_gen(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
-  table_gen.GenerateTestTables(true);
-  table_gen.GenerateMiniRunnerIndexTables();
+//  table_gen.GenerateTestTables(true);
+//  table_gen.GenerateMiniRunnerIndexTables();
 
   txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
   InvokeGC();
@@ -2496,9 +2496,7 @@ void RunBenchmarkSequence(int rerun_counter) {
   // In order for the modeller to work correctly, we first need to model
   // the dependent features and then subtract estimations/exact counters
   // from the composite to get an approximation for the target feature.
-  std::vector<std::vector<std::string>> filters = {{"SEQ0"},   {"SEQ1_0", "SEQ1_1"}, {"SEQ2_0", "SEQ2_1"}, {"SEQ3"},
-                                                   {"SEQ4"},   {"SEQ5_0", "SEQ5_1"}, {"SEQ6_0", "SEQ6_1"}, {"SEQ7_2"},
-                                                   {"SEQ8_2"}, {"SEQ9_0", "SEQ9_1"}};
+  std::vector<std::vector<std::string>> filters = {{"SEQ0"}};
   std::vector<std::string> titles = {"OUTPUT", "SCANS",  "IDX_SCANS", "SORTS",  "HJ",
                                      "AGGS",   "INSERT", "UPDATE",    "DELETE", "CREATE_INDEX"};
 
