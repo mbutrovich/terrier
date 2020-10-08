@@ -54,3 +54,7 @@ GBENCHMARK_VERSION=1.4.1
 # commit hash: f3138045810b2c2e9b59dbede296b4a5194af4f9
 # commit hash date: 24 Dec 2018
 # modifications: replaced their own-rolled spinlock with TBB's to get exponential backoff with pause. formatted
+
+# folly (just the tracing folder for usdt)
+# url: https://github.com/facebook/folly
+# release: v2020.08.31.00

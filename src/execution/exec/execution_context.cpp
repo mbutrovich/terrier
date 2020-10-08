@@ -4,6 +4,7 @@
 #include "brain/operating_unit_util.h"
 #include "common/thread_context.h"
 #include "execution/sql/value.h"
+#include "folly/tracing/StaticTracepoint.h"
 #include "metrics/metrics_store.h"
 #include "parser/expression/constant_value_expression.h"
 
@@ -59,37 +60,56 @@ void ExecutionContext::StartResourceTracker(metrics::MetricsComponent component)
 void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { TERRIER_ASSERT(false, "this is unused?"); }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
-  constexpr metrics::MetricsComponent component = metrics::MetricsComponent::EXECUTION_PIPELINE;
-
-  if (common::thread_context.metrics_store_ != nullptr &&
-      common::thread_context.metrics_store_->ComponentToRecord(component)) {
-    // Start the resource tracker.
-    TERRIER_ASSERT(!common::thread_context.resource_tracker_.IsRunning(), "ResourceTrackers cannot be nested");
-    common::thread_context.resource_tracker_.Start();
-    mem_tracker_->Reset();
-
-    TERRIER_ASSERT(pipeline_operating_units_ != nullptr, "PipelineOperatingUnits should not be null");
-  }
+  mem_tracker_->Reset();
+  FOLLY_SDT(, pipeline__start);
 }
 
-void ExecutionContext::EndPipelineTracker(query_id_t query_id, pipeline_id_t pipeline_id,
+#define MAX_FEATURES 8
+
+struct features {
+  const uint32_t query_id;
+  const uint32_t pipeline_id;
+  const uint8_t execution_mode;
+  const uint8_t num_features;
+  const uint64_t memory_bytes;
+  uint8_t features[MAX_FEATURES];
+  uint32_t est_output_rows[MAX_FEATURES];
+  uint16_t key_sizes[MAX_FEATURES];
+  uint8_t num_keys[MAX_FEATURES];
+  uint8_t est_cardinalities[MAX_FEATURES];
+  uint8_t mem_factor[MAX_FEATURES];
+  uint8_t num_loops[MAX_FEATURES];
+};
+
+void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           brain::ExecOUFeatureVector *ouvec) {
-  if (common::thread_context.metrics_store_ != nullptr && common::thread_context.resource_tracker_.IsRunning()) {
-    common::thread_context.resource_tracker_.Stop();
-    auto mem_size = mem_tracker_->GetAllocatedSize();
-    if (memory_use_override_) {
-      mem_size = memory_use_override_value_;
-    }
+  const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
-    common::thread_context.resource_tracker_.SetMemory(mem_size);
-    const auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
+  struct features feats = {.query_id = static_cast<uint32_t>(query_id),
+                           .pipeline_id = static_cast<uint32_t>(pipeline_id),
+                           .execution_mode = execution_mode_,
+                           .num_features = static_cast<uint8_t>(current_pipeline_features_.size()),
+                           .memory_bytes = mem_size};
 
-    TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
-    brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_.begin(),
-                                                        ouvec->pipeline_features_.end());
-    common::thread_context.metrics_store_->RecordPipelineData(query_id, pipeline_id, execution_mode_,
-                                                              std::move(features), resource_metrics);
+
+  TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
+  brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_.begin(),
+                                                      ouvec->pipeline_features_.end());
+
+
+  for (uint8_t i = 0; i < feats.num_features; i++) {
+    TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
+    const auto &op_feature = features[i];
+    feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
+    feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
+    feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
+    feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
+    feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
+    feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor() * UINT8_MAX);
+    feats.num_loops[i] = static_cast<uint8_t>(op_feature.GetNumLoops());
   }
+
+  FOLLY_SDT(, pipeline__done, &feats);
 }
 
 void ExecutionContext::InitializeOUFeatureVector(brain::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
