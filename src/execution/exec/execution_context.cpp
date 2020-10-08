@@ -53,11 +53,9 @@ void ExecutionContext::AggregateMetricsThread() {
   }
 }
 
-void ExecutionContext::StartResourceTracker(metrics::MetricsComponent component) {
-  TERRIER_ASSERT(false, "this is unused?");
-}
+void ExecutionContext::StartResourceTracker(metrics::MetricsComponent component) { UNREACHABLE("this is unused?"); }
 
-void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { TERRIER_ASSERT(false, "this is unused?"); }
+void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { UNREACHABLE("this is unused?"); }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
   mem_tracker_->Reset();
@@ -79,23 +77,22 @@ struct features {
   uint8_t est_cardinalities[MAX_FEATURES];
   uint8_t mem_factor[MAX_FEATURES];
   uint8_t num_loops[MAX_FEATURES];
+  uint8_t num_concurrent[MAX_FEATURES];
 };
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           brain::ExecOUFeatureVector *ouvec) {
   const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
-  struct features feats = {.query_id = static_cast<uint32_t>(query_id),
-                           .pipeline_id = static_cast<uint32_t>(pipeline_id),
-                           .execution_mode = execution_mode_,
-                           .num_features = static_cast<uint8_t>(current_pipeline_features_.size()),
-                           .memory_bytes = mem_size};
-
-
   TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
   brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_.begin(),
                                                       ouvec->pipeline_features_.end());
 
+  struct features feats = {.query_id = static_cast<uint32_t>(query_id),
+                           .pipeline_id = static_cast<uint32_t>(pipeline_id),
+                           .execution_mode = execution_mode_,
+                           .num_features = static_cast<uint8_t>(features.size()),
+                           .memory_bytes = mem_size};
 
   for (uint8_t i = 0; i < feats.num_features; i++) {
     TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
@@ -107,6 +104,7 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
     feats.est_cardinalities[i] = static_cast<uint8_t>(op_feature.GetCardinality());
     feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor() * UINT8_MAX);
     feats.num_loops[i] = static_cast<uint8_t>(op_feature.GetNumLoops());
+    feats.num_concurrent[i] = static_cast<uint8_t>(op_feature.GetNumConcurrent());
   }
 
   FOLLY_SDT(, pipeline__done, &feats);
