@@ -10,6 +10,8 @@
 
 namespace terrier::execution::exec {
 
+FOLLY_SDT_DEFINE_SEMAPHORE(, pipeline__done);
+
 OutputBuffer *ExecutionContext::OutputBufferNew() {
   if (schema_ == nullptr) {
     return nullptr;
@@ -82,32 +84,33 @@ struct features {
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           brain::ExecOUFeatureVector *ouvec) {
-  const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
+  if (FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
+    const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
-  TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
-  brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_.begin(),
-                                                      ouvec->pipeline_features_.end());
+    TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
+    brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_.begin(),
+                                                        ouvec->pipeline_features_.end());
 
-  struct features feats = {.query_id = static_cast<uint32_t>(query_id),
-                           .pipeline_id = static_cast<uint32_t>(pipeline_id),
-                           .execution_mode = execution_mode_,
-                           .num_features = static_cast<uint8_t>(features.size()),
-                           .memory_bytes = mem_size};
+    struct features feats = {.query_id = static_cast<uint32_t>(query_id),
+                             .pipeline_id = static_cast<uint32_t>(pipeline_id),
+                             .execution_mode = execution_mode_,
+                             .num_features = static_cast<uint8_t>(features.size()),
+                             .memory_bytes = mem_size};
 
-  for (uint8_t i = 0; i < feats.num_features; i++) {
-    TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
-    const auto &op_feature = features[i];
-    feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
-    feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
-    feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
-    feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
-    feats.est_cardinalities[i] = static_cast<uint32_t>(op_feature.GetCardinality());
-    feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor() * UINT8_MAX);
-    feats.num_loops[i] = static_cast<uint8_t>(op_feature.GetNumLoops());
-    feats.num_concurrent[i] = static_cast<uint8_t>(op_feature.GetNumConcurrent());
+    for (uint8_t i = 0; i < feats.num_features; i++) {
+      TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
+      const auto &op_feature = features[i];
+      feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
+      feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
+      feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
+      feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
+      feats.est_cardinalities[i] = static_cast<uint32_t>(op_feature.GetCardinality());
+      feats.mem_factor[i] = static_cast<uint8_t>(op_feature.GetMemFactor() * UINT8_MAX);
+      feats.num_loops[i] = static_cast<uint8_t>(op_feature.GetNumLoops());
+      feats.num_concurrent[i] = static_cast<uint8_t>(op_feature.GetNumConcurrent());
+    }
+    FOLLY_SDT_WITH_SEMAPHORE(, pipeline__done, &feats);
   }
-
-  FOLLY_SDT(, pipeline__done, &feats);
 }
 
 void ExecutionContext::InitializeOUFeatureVector(brain::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
