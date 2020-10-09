@@ -88,8 +88,8 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
-    brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_.begin(),
-                                                        ouvec->pipeline_features_.end());
+    brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
+                                                        ouvec->pipeline_features_->end());
 
     struct features feats = {.query_id = static_cast<uint32_t>(query_id),
                              .pipeline_id = static_cast<uint32_t>(pipeline_id),
@@ -114,21 +114,24 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
 }
 
 void ExecutionContext::InitializeOUFeatureVector(brain::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
-  auto *vec = new (ouvec) brain::ExecOUFeatureVector(GetMemoryPool());
+  auto *vec = new (ouvec) brain::ExecOUFeatureVector();
   vec->pipeline_id_ = pipeline_id;
 
   auto &features = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
-  vec->pipeline_features_.insert(vec->pipeline_features_.end(), features.begin(), features.end());
+  vec->pipeline_features_ = std::make_unique<execution::sql::MemPoolVector<brain::ExecutionOperatingUnitFeature>>(
+      features.begin(), features.end(), GetMemoryPool());
 
   // Update num_concurrent
-  for (auto &feature : vec->pipeline_features_) {
+  for (auto &feature : *vec->pipeline_features_) {
     feature.SetNumConcurrent(num_concurrent_estimate_);
   }
 }
 
 void ExecutionContext::InitializeParallelOUFeatureVector(brain::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
-  auto *vec = new (ouvec) brain::ExecOUFeatureVector(GetMemoryPool());
+  auto *vec = new (ouvec) brain::ExecOUFeatureVector();
   vec->pipeline_id_ = pipeline_id;
+  vec->pipeline_features_ =
+      std::make_unique<execution::sql::MemPoolVector<brain::ExecutionOperatingUnitFeature>>(GetMemoryPool());
 
   bool found_blocking = false;
   brain::ExecutionOperatingUnitFeature feature;
@@ -148,24 +151,24 @@ void ExecutionContext::InitializeParallelOUFeatureVector(brain::ExecOUFeatureVec
 
   switch (feature.GetExecutionOperatingUnitType()) {
     case brain::ExecutionOperatingUnitType::HASHJOIN_BUILD:
-      vec->pipeline_features_.emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_MERGE_HASHJOIN, feature);
+      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_MERGE_HASHJOIN, feature);
       break;
     case brain::ExecutionOperatingUnitType::AGGREGATE_BUILD:
-      vec->pipeline_features_.emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_MERGE_AGGBUILD, feature);
+      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_MERGE_AGGBUILD, feature);
       break;
     case brain::ExecutionOperatingUnitType::SORT_BUILD:
-      vec->pipeline_features_.emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_STEP, feature);
-      vec->pipeline_features_.emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_MERGE_STEP, feature);
+      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_STEP, feature);
+      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_MERGE_STEP, feature);
       break;
     case brain::ExecutionOperatingUnitType::CREATE_INDEX:
-      vec->pipeline_features_.emplace_back(brain::ExecutionOperatingUnitType::CREATE_INDEX_MAIN, feature);
+      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::CREATE_INDEX_MAIN, feature);
       break;
     default:
       TERRIER_ASSERT(false, "Unsupported parallel OU");
   }
 
   // Update num_concurrent
-  for (auto &feature : vec->pipeline_features_) {
+  for (auto &feature : *vec->pipeline_features_) {
     feature.SetNumConcurrent(num_concurrent_estimate_);
   }
 }
