@@ -2390,8 +2390,8 @@ void InitializeRunnersState() {
                                                                       exec_settings, db_main->GetMetricsManager());
 
   execution::sql::TableGenerator table_gen(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
-//  table_gen.GenerateTestTables(true);
-//  table_gen.GenerateMiniRunnerIndexTables();
+  //  table_gen.GenerateTestTables(true);
+  //  table_gen.GenerateMiniRunnerIndexTables();
 
   txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
   InvokeGC();
@@ -2597,6 +2597,9 @@ struct Arg {
 };
 
 int main(int argc, char **argv) {
+  std::string pause;
+  std::cin >> pause;
+
   Arg port_info{"--port=", false};
   Arg filter_info{"--benchmark_filter=", false, "*"};
   Arg skip_large_rows_runs_info{"--skip_large_rows_runs=", false};
