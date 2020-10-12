@@ -1096,7 +1096,7 @@ class MiniRunners : public benchmark::Fixture {
         txn_manager_->Abort(txn);
 
       if (i == num_iters - 1) {
-//        metrics_manager_->Aggregate();
+        metrics_manager_->Aggregate();
         metrics_manager_->UnregisterThread();
       }
     }
@@ -1208,7 +1208,7 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ0_ArithmeticRunners)(benchmark::State &state)
   BenchmarkArithmetic(static_cast<brain::ExecutionOperatingUnitType>(state.range(0)),
                       static_cast<size_t>(state.range(1)));
 
-//  metrics_manager_->Aggregate();
+  metrics_manager_->Aggregate();
   metrics_manager_->UnregisterThread();
 
   state.SetItemsProcessed(state.range(1));
