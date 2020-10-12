@@ -84,7 +84,7 @@ struct features {
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           brain::ExecOUFeatureVector *ouvec) {
-  if (FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
+  if (common::thread_context.metrics_store_ != nullptr && FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
