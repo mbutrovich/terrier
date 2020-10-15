@@ -497,13 +497,12 @@ static void GenJoinNonSelfArguments(benchmark::internal::Benchmark *b) {
 }
 
 /**
- * Arg: <0, 1, 2, 3, 4, 5>
+ * Arg: <0, 1, 2, 3, 4>
  * 0 - Type
  * 1 - Key Size
  * 2 - Index Size
  * 3 - Lookup size
- * 4 - Number of columns in table
- * 5 - Special argument used to indicate building an index.
+ * 4 - Special argument used to indicate building an index.
  *     A value of 0 means to drop the index. A value of -1 is
  *     a dummy/sentinel value. A value of 1 means to create the
  *     index. This argument is only used when lookup_size = 0
@@ -515,47 +514,43 @@ static void GenIdxScanArguments(benchmark::internal::Benchmark *b) {
   auto &lookup_sizes = config.sweep_index_lookup_sizes_;
   for (auto type : types) {
     for (auto key_size : key_sizes) {
-      auto tbl_cols = (type == type::TypeId::VARCHAR) ? 5 : 15;
       // Only handle varchar up to 5 keys for size concerns
       if (type == type::TypeId::VARCHAR && key_size > 5) continue;
       for (auto idx_size : idx_sizes) {
-        b->Args({static_cast<int64_t>(type), key_size, idx_size, 0, tbl_cols, 1});
+        b->Args({static_cast<int64_t>(type), key_size, idx_size, 0, 1});
 
         for (auto lookup_size : lookup_sizes) {
           if (lookup_size <= idx_size) {
-            b->Args({static_cast<int64_t>(type), key_size, idx_size, lookup_size, tbl_cols, -1});
+            b->Args({static_cast<int64_t>(type), key_size, idx_size, lookup_size, -1});
           }
         }
 
-        b->Args({static_cast<int64_t>(type), key_size, idx_size, 0, tbl_cols, 0});
+        b->Args({static_cast<int64_t>(type), key_size, idx_size, 0, 0});
       }
     }
   }
 }
 
 /**
- * Arg: <0, 1, 2, 3>
+ * Arg: <0, 1, 2>
  * 0 - Col
  * 1 - Outer Table
  * 2 - Inner Table
- * 3 - Number of columns in outer/inner tables
- * 4 - Argument to build/drop index
  */
 static void GenIdxJoinArguments(benchmark::internal::Benchmark *b) {
-  auto tbl_cols = 15;
   auto &key_sizes = config.sweep_col_nums_;
   auto &idx_sizes = config.table_row_nums_;
   for (auto key_size : key_sizes) {
     for (size_t j = 0; j < idx_sizes.size(); j++) {
       // Build the inner index
-      b->Args({key_size, 0, idx_sizes[j], tbl_cols, 1});
+      b->Args({key_size, 0, idx_sizes[j], 1});
 
       for (size_t i = 0; i < idx_sizes.size(); i++) {
-        b->Args({key_size, idx_sizes[i], idx_sizes[j], tbl_cols, -1});
+        b->Args({key_size, idx_sizes[i], idx_sizes[j], -1});
       }
 
       // Drop the inner index
-      b->Args({key_size, 0, idx_sizes[j], tbl_cols, 0});
+      b->Args({key_size, 0, idx_sizes[j], 0});
     }
   }
 }
@@ -784,7 +779,7 @@ class MiniRunners : public benchmark::Fixture {
   void ExecuteDelete(benchmark::State *state);
   void ExecuteCreateIndex(benchmark::State *state);
 
-  std::string ConstructIndexScanPredicate(type::TypeId type, int64_t key_num, int64_t num_rows, int64_t lookup_size,
+  std::string ConstructIndexScanPredicate(int64_t key_num, int64_t num_rows, int64_t lookup_size,
                                           bool parameter = false) {
     std::mt19937 generator{};
     auto low_key = std::uniform_int_distribution(static_cast<uint32_t>(0),
@@ -792,22 +787,21 @@ class MiniRunners : public benchmark::Fixture {
     auto high_key = low_key + lookup_size - 1;
 
     std::stringstream predicatess;
-    auto type_name = type::TypeUtil::TypeIdToString(type);
     for (auto j = 1; j <= key_num; j++) {
       if (lookup_size == 1) {
-        predicatess << type_name << j << " = ";
+        predicatess << "col" << j << " = ";
         if (parameter)
           predicatess << "$1";
         else
           predicatess << low_key;
       } else {
-        predicatess << type_name << j << " >= ";
+        predicatess << "col" << j << " >= ";
         if (parameter)
           predicatess << "$1";
         else
           predicatess << low_key;
 
-        predicatess << " AND " << type_name << j << " <= ";
+        predicatess << " AND col" << j << " <= ";
         if (parameter)
           predicatess << "$2";
         else
@@ -823,12 +817,14 @@ class MiniRunners : public benchmark::Fixture {
                                int64_t num_left, int64_t num_right) {
     std::stringstream cols;
     for (auto i = 1; i <= num_left; i++) {
-      cols << prefix << (type::TypeUtil::TypeIdToString(left_type)) << i;
+      auto type = (left_type == type::TypeId::INVALID) ? "col" : type::TypeUtil::TypeIdToString(left_type);
+      cols << prefix << type << i;
       if (i != num_left || num_right != 0) cols << ", ";
     }
 
     for (auto i = 1; i <= num_right; i++) {
-      cols << prefix << (type::TypeUtil::TypeIdToString(right_type)) << i;
+      auto type = (right_type == type::TypeId::INVALID) ? "col" : type::TypeUtil::TypeIdToString(right_type);
+      cols << prefix << type << i;
       if (i != num_right) cols << ", ";
     }
     return cols.str();
@@ -838,13 +834,13 @@ class MiniRunners : public benchmark::Fixture {
                                  type::TypeId right_type, int64_t num_left, int64_t num_right) {
     std::stringstream pred;
     for (auto i = 1; i <= num_left; i++) {
-      auto type_name = type::TypeUtil::TypeIdToString(left_type);
+      auto type_name = (left_type == type::TypeId::INVALID) ? "col" : type::TypeUtil::TypeIdToString(left_type);
       pred << left_alias << "." << type_name << i << " = " << right_alias << "." << type_name << i;
       if (i != num_left || num_right != 0) pred << " AND ";
     }
 
     for (auto i = 1; i <= num_right; i++) {
-      auto type_name = type::TypeUtil::TypeIdToString(right_type);
+      auto type_name = (right_type == type::TypeId::INVALID) ? "col" : type::TypeUtil::TypeIdToString(right_type);
       pred << left_alias << "." << type_name << i << " = " << right_alias << "." << type_name << i;
       if (i != num_right) pred << " AND ";
     }
@@ -1031,7 +1027,7 @@ class MiniRunners : public benchmark::Fixture {
     return ret_val;
   }
 
-  void HandleBuildDropIndex(bool is_build, int64_t num_col, int64_t num_rows, int64_t num_key, type::TypeId type) {
+  void HandleBuildDropIndex(bool is_build, int64_t num_rows, int64_t num_key, type::TypeId type) {
     auto block_store = db_main->GetStorageLayer()->GetBlockStore();
     auto catalog = db_main->GetCatalogLayer()->GetCatalog();
     auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
@@ -1045,9 +1041,9 @@ class MiniRunners : public benchmark::Fixture {
 
     execution::sql::TableGenerator table_generator(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
     if (is_build) {
-      table_generator.BuildMiniRunnerIndex(type, num_rows, num_col, num_key);
+      table_generator.BuildMiniRunnerIndex(type, num_rows, num_key);
     } else {
-      bool result = table_generator.DropMiniRunnerIndex(type, num_rows, num_col, num_key);
+      bool result = table_generator.DropMiniRunnerIndex(type, num_rows, num_key);
       if (!result) {
         throw "Drop Index has failed";
       }
@@ -1281,7 +1277,6 @@ void NetworkQueriesOutputRunners(pqxx::work *txn) {
 
 void NetworkQueriesCreateIndexRunners(pqxx::work *txn) {
   std::ostream null{nullptr};
-  auto tbl_cols = 15;
   std::vector<int> num_threads = {1, 2, 4, 8, 16};
   std::vector<uint32_t> num_cols = {1, 2, 4, 8, 15};
   std::vector<type::TypeId> types = {type::TypeId::INTEGER, type::TypeId::BIGINT};
@@ -1326,13 +1321,12 @@ void NetworkQueriesCreateIndexRunners(pqxx::work *txn) {
             }
 
             std::string create_query;
-            auto type_name = type::TypeUtil::TypeIdToString(type);
             {
               std::stringstream query_ss;
-              auto table_name = execution::sql::TableGenerator::GenerateTableName(type, tbl_cols, row, row);
+              auto table_name = execution::sql::TableGenerator::GenerateTableIndexName(type, row);
               query_ss << "CREATE INDEX minirunners__" << row << " ON " << table_name << "(";
               for (size_t j = 1; j <= col; j++) {
-                query_ss << type_name << j;
+                query_ss << "col" << j;
                 if (j != col) {
                   query_ss << ",";
                 } else {
@@ -1382,8 +1376,10 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ0_OutputRunners)(benchmark::State &state) {
   output << "\tpipelineState.output_buffer = @resultBufferNew(queryState.execCtx)\n";
   output << "\treturn\n";
   output << "}\n";
-  output << "fun Query0_Pipeline1_TearDownPipelineState(queryState: *QueryState, pipelineState: *P1_State) -> nil "
-            "{\nreturn\n}\n";
+  output << "fun Query0_Pipeline1_TearDownPipelineState(queryState: *QueryState, pipelineState: *P1_State) -> nil {\n";
+  output << "\t@resultBufferFree(pipelineState.output_buffer)\n";
+  output << "\t@execOUFeatureVectorReset(&pipelineState.execFeatures)\n";
+  output << "}\n";
 
   // pipeline
   output << "fun Query0_Pipeline1_SerialWork(queryState: *QueryState, pipelineState: *P1_State) -> nil {\n";
@@ -1545,15 +1541,14 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ2_0_IndexScanRunners)(benchmark::State &state
   auto key_num = state.range(1);
   auto num_rows = state.range(2);
   auto lookup_size = state.range(3);
-  auto num_cols = state.range(4);
-  auto is_build = state.range(5);
+  auto is_build = state.range(4);
 
   if (lookup_size == 0) {
     if (is_build < 0) {
       throw "Invalid is_build argument for IndexScan";
     }
 
-    HandleBuildDropIndex(is_build != 0, num_cols, num_rows, key_num, type);
+    HandleBuildDropIndex(is_build != 0, num_rows, key_num, type);
     return;
   }
 
@@ -1578,8 +1573,8 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ2_0_IndexScanRunners)(benchmark::State &state
                          tuple_size, key_num, lookup_size, 1, 0, 0);
   units->RecordOperatingUnit(execution::pipeline_id_t(1), std::move(pipe0_vec));
 
-  std::string cols = ConstructColumns("", type, type::TypeId::INVALID, key_num, 0);
-  std::string predicate = ConstructIndexScanPredicate(type, key_num, num_rows, lookup_size, true);
+  std::string cols = ConstructColumns("", type::TypeId::INVALID, type::TypeId::INVALID, key_num, 0);
+  std::string predicate = ConstructIndexScanPredicate(key_num, num_rows, lookup_size, true);
 
   std::vector<parser::ConstantValueExpression> params;
   std::vector<type::TypeId> param_types;
@@ -1601,7 +1596,7 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ2_0_IndexScanRunners)(benchmark::State &state
   }
 
   std::stringstream query;
-  auto table_name = execution::sql::TableGenerator::GenerateTableName(type, num_cols, num_rows, num_rows);
+  auto table_name = execution::sql::TableGenerator::GenerateTableIndexName(type, num_rows);
   query << "SELECT " << cols << " FROM  " << table_name << " WHERE " << predicate;
   auto f = std::bind(&MiniRunners::IndexScanChecker, this, key_num, std::placeholders::_1, std::placeholders::_2);
   auto equery = OptimizeSqlStatement(query.str(), std::make_unique<optimizer::TrivialCostModel>(), std::move(units), f,
@@ -1623,15 +1618,14 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ2_1_IndexJoinRunners)(benchmark::State &state
   auto key_num = state.range(0);
   auto outer = state.range(1);
   auto inner = state.range(2);
-  auto num_col = state.range(3);
-  auto is_build = state.range(4);
+  auto is_build = state.range(3);
 
   if (outer == 0) {
     if (is_build < 0) {
       throw "Invalid is_build argument for IndexJoin";
     }
 
-    HandleBuildDropIndex(is_build != 0, num_col, inner, key_num, type);
+    HandleBuildDropIndex(is_build != 0, inner, key_num, type);
     return;
   }
 
@@ -1657,10 +1651,11 @@ BENCHMARK_DEFINE_F(MiniRunners, SEQ2_1_IndexJoinRunners)(benchmark::State &state
                          key_num, 1, 1, outer, 0);
   units->RecordOperatingUnit(execution::pipeline_id_t(1), std::move(pipe0_vec));
 
-  std::string cols = ConstructColumns("a.", type, type::TypeId::INVALID, key_num, 0);
-  std::string predicate = ConstructPredicate("a", "b", type, type::TypeId::INVALID, key_num, 0);
-  auto outer_tbl = execution::sql::TableGenerator::GenerateTableName(type, num_col, outer, outer);
-  auto inner_tbl = execution::sql::TableGenerator::GenerateTableName(type, num_col, inner, inner);
+  std::string cols = ConstructColumns("a.", type::TypeId::INVALID, type::TypeId::INVALID, key_num, 0);
+  std::string predicate = ConstructPredicate("a", "b", type::TypeId::INVALID, type::TypeId::INVALID, key_num, 0);
+
+  auto outer_tbl = execution::sql::TableGenerator::GenerateTableIndexName(type, outer);
+  auto inner_tbl = execution::sql::TableGenerator::GenerateTableIndexName(type, inner);
 
   std::stringstream query;
   query << "SELECT " << cols << " FROM " << outer_tbl << " AS a, " << inner_tbl << " AS b WHERE " << predicate;
@@ -1793,7 +1788,6 @@ void MiniRunners::ExecuteUpdate(benchmark::State *state) {
   auto num_integers = state->range(0);
   auto num_bigints = state->range(1);
   auto tbl_ints = state->range(2);
-  auto tbl_bigints = state->range(3);
   auto row = state->range(4);
   auto car = state->range(5);
   auto is_build = state->range(6);
@@ -1806,13 +1800,12 @@ void MiniRunners::ExecuteUpdate(benchmark::State *state) {
 
   // A lookup size of 0 indicates a special query
   auto type = tbl_ints != 0 ? (type::TypeId::INTEGER) : (type::TypeId::BIGINT);
-  auto tbl_col = tbl_ints + tbl_bigints;
   if (car == 0) {
     if (is_build < 0) {
       throw "Invalid is_build argument for ExecuteUpdate";
     }
 
-    HandleBuildDropIndex(is_build != 0, tbl_col, row, num_integers + num_bigints, type);
+    HandleBuildDropIndex(is_build != 0, row, num_integers + num_bigints, type);
     return;
   }
 
@@ -1829,7 +1822,7 @@ void MiniRunners::ExecuteUpdate(benchmark::State *state) {
   // - Iterating over entire table for the slot
   // - Cost of "merging" updates with the undo/redos
   std::stringstream query;
-  std::string tbl = execution::sql::TableGenerator::GenerateTableName(type, tbl_col, row, row);
+  std::string tbl = execution::sql::TableGenerator::GenerateTableIndexName(type, row);
   query << "UPDATE " << tbl << " SET ";
 
   auto int_size = type::TypeUtil::GetTypeSize(type::TypeId::INTEGER);
@@ -1840,15 +1833,15 @@ void MiniRunners::ExecuteUpdate(benchmark::State *state) {
   std::mt19937 generator{};
   std::uniform_int_distribution<int> distribution(0, INT_MAX);
   for (auto j = 1; j <= num_integers; j++) {
-    auto prefix = type::TypeUtil::TypeIdToString(type::TypeId::INTEGER);
     // We need to do this to prevent the lookup from having to move
-    query << prefix << j << " = " << prefix << j << " + 0";
+    query << "col" << j << " = "
+          << "col" << j << " + 0";
     if (j != num_integers || num_bigints != 0) query << ", ";
   }
 
   for (auto j = 1; j <= num_bigints; j++) {
-    auto prefix = type::TypeUtil::TypeIdToString(type::TypeId::BIGINT);
-    query << prefix << j << " = " << prefix << j << " + 0";
+    query << "col" << j << " = "
+          << "col" << j << " + 0";
     if (j != num_bigints) query << ", ";
   }
 
@@ -1874,7 +1867,7 @@ void MiniRunners::ExecuteUpdate(benchmark::State *state) {
   }
 
   GenIdxScanParameters(type, row, car, num_iters, &real_params);
-  std::string predicate = ConstructIndexScanPredicate(type, num_col, row, car, true);
+  std::string predicate = ConstructIndexScanPredicate(num_col, row, car, true);
   query << " WHERE " << predicate;
 
   auto f = std::bind(&MiniRunners::ChildIndexScanChecker, this, std::placeholders::_1, std::placeholders::_2);
@@ -1909,11 +1902,6 @@ void MiniRunners::ExecuteDelete(benchmark::State *state) {
     return;
   }
 
-  auto int_size = type::TypeUtil::GetTypeSize(type::TypeId::INTEGER);
-  auto decimal_size = type::TypeUtil::GetTypeSize(type::TypeId::BIGINT);
-  auto tbl_col = tbl_ints + tbl_decimals;
-  auto tbl_size = tbl_ints * int_size + tbl_decimals * decimal_size;
-
   // A lookup size of 0 indicates a special query
   auto type = tbl_ints != 0 ? (type::TypeId::INTEGER) : (type::TypeId::BIGINT);
   if (car == 0) {
@@ -1921,7 +1909,7 @@ void MiniRunners::ExecuteDelete(benchmark::State *state) {
       throw "Invalid is_build argument for ExecuteDelete";
     }
 
-    HandleBuildDropIndex(is_build != 0, tbl_col, row, num_integers + num_decimals, type);
+    HandleBuildDropIndex(is_build != 0, row, num_integers + num_decimals, type);
     return;
   }
 
@@ -1932,12 +1920,18 @@ void MiniRunners::ExecuteDelete(benchmark::State *state) {
     return;
   }
 
+  auto int_size = type::TypeUtil::GetTypeSize(type::TypeId::INTEGER);
+  auto decimal_size = type::TypeUtil::GetTypeSize(type::TypeId::BIGINT);
   auto tuple_size = int_size * num_integers + decimal_size * num_decimals;
   auto num_col = num_integers + num_decimals;
+
   std::stringstream query;
   std::vector<std::vector<parser::ConstantValueExpression>> real_params;
   std::pair<std::unique_ptr<execution::compiler::ExecutableQuery>, std::unique_ptr<planner::OutputSchema>> equery;
   auto cost = std::make_unique<optimizer::TrivialCostModel>();
+
+  auto tbl_col = tbl_ints + tbl_decimals;
+  auto tbl_size = tbl_ints * int_size + tbl_decimals * decimal_size;
 
   auto units = std::make_unique<brain::PipelineOperatingUnits>();
   brain::ExecutionOperatingUnitFeatureVector pipe0_vec;
@@ -1957,8 +1951,8 @@ void MiniRunners::ExecuteDelete(benchmark::State *state) {
   }
 
   GenIdxScanParameters(type, row, car, num_iters, &real_params);
-  std::string predicate = ConstructIndexScanPredicate(type, num_col, row, car, true);
-  query << "DELETE FROM " << execution::sql::TableGenerator::GenerateTableName(type, tbl_col, row, row) << " WHERE "
+  std::string predicate = ConstructIndexScanPredicate(num_col, row, car, true);
+  query << "DELETE FROM " << execution::sql::TableGenerator::GenerateTableIndexName(type, row) << " WHERE "
         << predicate;
 
   auto f = std::bind(&MiniRunners::ChildIndexScanChecker, this, std::placeholders::_1, std::placeholders::_2);
@@ -2385,6 +2379,7 @@ void InitializeRunnersState() {
 
   execution::sql::TableGenerator table_gen(exec_ctx.get(), block_store, accessor->GetDefaultNamespace());
   table_gen.GenerateMiniRunnersData(config);
+  table_gen.GenerateMiniRunnerIndexTables(config);
 
   txn_manager->Commit(txn, transaction::TransactionUtil::EmptyCallback, nullptr);
   InvokeGC();
