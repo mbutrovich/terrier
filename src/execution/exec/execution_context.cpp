@@ -5,6 +5,7 @@
 #include "common/thread_context.h"
 #include "execution/sql/value.h"
 #include "folly/tracing/StaticTracepoint.h"
+#include "metrics/metrics_manager.h"
 #include "metrics/metrics_store.h"
 #include "parser/expression/constant_value_expression.h"
 
