@@ -9,7 +9,7 @@
 #include "metrics/metrics_store.h"
 #include "parser/expression/constant_value_expression.h"
 
-namespace terrier::execution::exec {
+namespace noisepage::execution::exec {
 
 FOLLY_SDT_DEFINE_SEMAPHORE(, pipeline__done);
 
@@ -38,14 +38,14 @@ uint32_t ExecutionContext::ComputeTupleSize(const planner::OutputSchema *schema)
 }
 
 void ExecutionContext::RegisterThreadWithMetricsManager() {
-  if (terrier::common::thread_context.metrics_store_ == nullptr && GetMetricsManager()) {
+  if (noisepage::common::thread_context.metrics_store_ == nullptr && GetMetricsManager()) {
     GetMetricsManager()->RegisterThread();
   }
 }
 
 void ExecutionContext::CheckTrackersStopped() {
-  if (terrier::common::thread_context.metrics_store_ != nullptr &&
-      terrier::common::thread_context.resource_tracker_.IsRunning()) {
+  if (noisepage::common::thread_context.metrics_store_ != nullptr &&
+      noisepage::common::thread_context.resource_tracker_.IsRunning()) {
     UNREACHABLE("Resource Trackers should have stopped");
   }
 }
@@ -87,8 +87,9 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
                                           brain::ExecOUFeatureVector *ouvec) {
   if (common::thread_context.metrics_store_ != nullptr && FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
+    common::thread_context.resource_tracker_.SetMemory(mem_size);
 
-    TERRIER_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
+    NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
     brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
                                                         ouvec->pipeline_features_->end());
 
@@ -96,10 +97,10 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
                              .pipeline_id = static_cast<uint32_t>(pipeline_id),
                              .execution_mode = execution_mode_,
                              .num_features = static_cast<uint8_t>(features.size()),
-                             .memory_bytes = mem_size};
+                             .memory_bytes = mem_size};   //FIXME(Matt): check master
 
     for (uint8_t i = 0; i < feats.num_features; i++) {
-      TERRIER_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
+      NOISEPAGE_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
       const auto &op_feature = features[i];
       feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
       feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
@@ -139,14 +140,14 @@ void ExecutionContext::InitializeParallelOUFeatureVector(brain::ExecOUFeatureVec
   auto features = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
   for (auto &feat : features) {
     if (brain::OperatingUnitUtil::IsOperatingUnitTypeBlocking(feat.GetExecutionOperatingUnitType())) {
-      TERRIER_ASSERT(!found_blocking, "Pipeline should only have 1 blocking");
+      NOISEPAGE_ASSERT(!found_blocking, "Pipeline should only have 1 blocking");
       found_blocking = true;
       feature = feat;
     }
   }
 
   if (!found_blocking) {
-    TERRIER_ASSERT(false, "Pipeline should have 1 blocking");
+    NOISEPAGE_ASSERT(false, "Pipeline should have 1 blocking");
     return;
   }
 
@@ -165,7 +166,7 @@ void ExecutionContext::InitializeParallelOUFeatureVector(brain::ExecOUFeatureVec
       vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::CREATE_INDEX_MAIN, feature);
       break;
     default:
-      TERRIER_ASSERT(false, "Unsupported parallel OU");
+      NOISEPAGE_ASSERT(false, "Unsupported parallel OU");
   }
 
   // Update num_concurrent
@@ -179,7 +180,7 @@ const parser::ConstantValueExpression &ExecutionContext::GetParam(const uint32_t
 }
 
 void ExecutionContext::RegisterHook(size_t hook_idx, HookFn hook) {
-  TERRIER_ASSERT(hook_idx < hooks_.capacity(), "Incorrect number of reserved hooks");
+  NOISEPAGE_ASSERT(hook_idx < hooks_.capacity(), "Incorrect number of reserved hooks");
   hooks_[hook_idx] = hook;
 }
 
@@ -191,4 +192,4 @@ void ExecutionContext::InvokeHook(size_t hook_index, void *tls, void *arg) {
 
 void ExecutionContext::InitHooks(size_t num_hooks) { hooks_.resize(num_hooks); }
 
-}  // namespace terrier::execution::exec
+}  // namespace noisepage::execution::exec
