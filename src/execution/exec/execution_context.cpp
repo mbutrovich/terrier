@@ -70,11 +70,11 @@ void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
 struct features {
   const uint32_t query_id;
   const uint32_t pipeline_id;
-  const uint8_t execution_mode;
   const uint8_t num_features;
-  const uint64_t memory_bytes;
   uint8_t features[MAX_FEATURES];
-  uint32_t est_output_rows[MAX_FEATURES];
+  const uint8_t execution_mode;
+  const uint64_t memory_bytes;
+  uint32_t num_rows[MAX_FEATURES];
   uint16_t key_sizes[MAX_FEATURES];
   uint8_t num_keys[MAX_FEATURES];
   uint32_t est_cardinalities[MAX_FEATURES];
@@ -87,23 +87,22 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
                                           brain::ExecOUFeatureVector *ouvec) {
   if (common::thread_context.metrics_store_ != nullptr && FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
-    common::thread_context.resource_tracker_.SetMemory(mem_size);
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
-    brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
-                                                        ouvec->pipeline_features_->end());
+    const brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
+                                                              ouvec->pipeline_features_->end());
 
     struct features feats = {.query_id = static_cast<uint32_t>(query_id),
                              .pipeline_id = static_cast<uint32_t>(pipeline_id),
-                             .execution_mode = execution_mode_,
                              .num_features = static_cast<uint8_t>(features.size()),
-                             .memory_bytes = mem_size};   //FIXME(Matt): check master
+                             .execution_mode = execution_mode_,
+                             .memory_bytes = mem_size};
 
     for (uint8_t i = 0; i < feats.num_features; i++) {
       NOISEPAGE_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
       const auto &op_feature = features[i];
       feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
-      feats.est_output_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
+      feats.num_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
       feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
       feats.num_keys[i] = static_cast<uint8_t>(op_feature.GetNumKeys());
       feats.est_cardinalities[i] = static_cast<uint32_t>(op_feature.GetCardinality());
