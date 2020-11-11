@@ -110,9 +110,6 @@ class PerfMonitor {
     std::memset(&pe, 0, sizeof(perf_event_attr));
     pe.type = PERF_TYPE_HARDWARE;
     pe.size = sizeof(perf_event_attr);
-    pe.disabled = 1;
-    pe.exclude_kernel = 1;
-    pe.exclude_hv = 1;
     if constexpr (inherit) {  // NOLINT
       // Count your children's counters
       pe.inherit = 1;
@@ -157,22 +154,8 @@ class PerfMonitor {
     // do nothing
 #else
     if (valid_) {
-      if constexpr (inherit) {  // NOLINT
-        // Iterate through all of the events' file descriptors resetting and starting them
-        for (const auto i : event_files_) {
-          auto result UNUSED_ATTRIBUTE = ioctl(i, PERF_EVENT_IOC_RESET);
-          NOISEPAGE_ASSERT(result >= 0, "Failed to reset events.");
-          result = ioctl(i, PERF_EVENT_IOC_ENABLE);
-          NOISEPAGE_ASSERT(result >= 0, "Failed to enable events.");
-        }
-      } else {  // NOLINT
-        // Reset all of the counters out with a single syscall.
-        auto result UNUSED_ATTRIBUTE = ioctl(event_files_[0], PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
-        NOISEPAGE_ASSERT(result >= 0, "Failed to reset events.");
-        // Start all of the counters out with a single syscall.
-        result = ioctl(event_files_[0], PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
-        NOISEPAGE_ASSERT(result >= 0, "Failed to enable events.");
-      }
+      NOISEPAGE_ASSERT(!running_, "Start() called without Stop() first.");
+      counters_ = ReadCounters();
       running_ = true;
     }
 #endif
@@ -186,18 +169,8 @@ class PerfMonitor {
     // do nothing
 #else
     if (valid_) {
-      NOISEPAGE_ASSERT(running_, "StopEvents() called without StartEvents() first.");
-      if constexpr (inherit) {  // NOLINT
-        // Iterate through all of the events' file descriptors stopping them
-        for (const auto i : event_files_) {
-          auto result UNUSED_ATTRIBUTE = ioctl(i, PERF_EVENT_IOC_DISABLE);
-          NOISEPAGE_ASSERT(result >= 0, "Failed to disable events.");
-        }
-      } else {  // NOLINT
-        // Stop all of the counters out with a single syscall.
-        auto result UNUSED_ATTRIBUTE = ioctl(event_files_[0], PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
-        NOISEPAGE_ASSERT(result >= 0, "Failed to disable events.");
-      }
+      NOISEPAGE_ASSERT(running_, "Stop() called without Start() first.");
+      counters_ = ReadCounters() - counters_;
       running_ = false;
     }
 #endif
@@ -207,7 +180,15 @@ class PerfMonitor {
    * Read out counters for the profiled period
    * @return struct representing the counters
    */
-  PerfCounters Counters() const {
+  PerfCounters Counters() const { return counters_; }
+
+  /**
+   * Number of currently enabled HW perf events. Update this if more are added.
+   */
+  static constexpr uint8_t NUM_HW_EVENTS = 6;
+
+ private:
+  PerfCounters ReadCounters() const {
     PerfCounters counters{};  // zero initialization
     if (valid_) {
       if constexpr (inherit) {  // NOLINT
@@ -240,17 +221,13 @@ class PerfMonitor {
     return counters;
   }
 
-  /**
-   * Number of currently enabled HW perf events. Update this if more are added.
-   */
-  static constexpr uint8_t NUM_HW_EVENTS = 6;
-
- private:
   // set the first file descriptor to -1. Since event_files[0] is always passed into group_fd on
   // perf_event_open, this has the effect of making the first event the group leader. All subsequent syscalls can use
   // that fd if we are not inheriting child counters.
   std::array<int32_t, NUM_HW_EVENTS> event_files_{-1};
   bool valid_ = true;
+
+  PerfCounters counters_;
 
 #if __APPLE__
   // do nothing
