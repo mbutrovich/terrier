@@ -6,7 +6,6 @@
 
 #include "common/thread_context.h"
 #include "metrics/metrics_store.h"
-#include "mimalloc/include/mimalloc.h"
 #include "network/network_util.h"
 #include "network/postgres/postgres_packet_util.h"
 #include "network/postgres/postgres_protocol_interpreter.h"
