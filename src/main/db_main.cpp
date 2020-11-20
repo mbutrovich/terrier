@@ -1,5 +1,7 @@
 #include "main/db_main.h"
 
+#include "mimalloc/include/mimalloc-new-delete.h"
+
 #define __SETTING_GFLAGS_DEFINE__    // NOLINT
 #include "settings/settings_defs.h"  // NOLINT
 #undef __SETTING_GFLAGS_DEFINE__     // NOLINT

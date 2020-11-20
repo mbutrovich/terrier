@@ -6,6 +6,7 @@
 
 #include "common/thread_context.h"
 #include "metrics/metrics_store.h"
+#include "mimalloc/include/mimalloc.h"
 #include "network/network_util.h"
 #include "network/postgres/postgres_packet_util.h"
 #include "network/postgres/postgres_protocol_interpreter.h"
@@ -76,6 +77,9 @@ Transition SimpleQueryCommand::Exec(const common::ManagedPointer<ProtocolInterpr
                                     const common::ManagedPointer<PostgresPacketWriter> out,
                                     const common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                                     const common::ManagedPointer<ConnectionContext> connection) {
+
+  mi_thread_stats_print_out(nullptr, nullptr);
+
   const auto postgres_interpreter = interpreter.CastManagedPointerTo<network::PostgresProtocolInterpreter>();
   NOISEPAGE_ASSERT(!postgres_interpreter->WaitingForSync(),
                    "We shouldn't be trying to execute commands while waiting for Sync message. This should have been "
@@ -203,6 +207,8 @@ Transition SimpleQueryCommand::Exec(const common::ManagedPointer<ProtocolInterpr
                                                                              : network::QueryType::QUERY_COMMIT);
     postgres_interpreter->ResetTransactionState();
   }
+
+  mi_thread_stats_print_out(nullptr, nullptr);
 
   return FinishSimpleQueryCommand(out, connection);
 }

@@ -499,6 +499,11 @@ set(GFLAGS_BUILD_gflags_nothreads_LIB OFF)          # Disable building the nothr
 set(GFLAGS_BUILD_TESTING OFF)                       # Disable building gflags tests.
 set(GFLAGS_BUILD_PACKAGING OFF)                     # Disable building gflags packaging.
 
+# mimalloc build settings
+set(MI_BUILD_STATIC OFF)                            # Disable building mimalloc static library
+set(MI_BUILD_OBJECT OFF)                            # Disable building mimalloc object library
+set(MI_BUILD_TESTS OFF)                             # Disable building mimalloc tests
+
 # ZeroMQ build settings.
 set(CPPZMQ_BUILD_TESTS OFF CACHE INTERNAL "Disable building CPPZMQ tests.")
 
@@ -517,6 +522,8 @@ add_noisepage_dep(googlebenchmark https://github.com/google/benchmark.git v1.5.2
 add_noisepage_dep(googletest https://github.com/google/googletest.git release-1.10.0)
 add_noisepage_dep(ips4o https://github.com/ips4o/ips4o.git 2fb65ca11ac1898faee2f146610e6409489d2105)
 add_noisepage_dep(madoka https://github.com/s-yata/madoka.git 66783ee5b84a432f934517ad65452d54b19230bb)
+add_noisepage_dep(mimalloc https://github.com/microsoft/mimalloc.git v1.6.7)
+target_compile_definitions(mimalloc PRIVATE MI_STAT=1)
 add_noisepage_dep(nlohmann_json https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git v3.7.3)
 add_noisepage_dep(spdlog https://github.com/gabime/spdlog.git v1.8.1)
 add_noisepage_dep(xbyak https://github.com/herumi/xbyak.git v5.77)
@@ -627,6 +634,7 @@ target_link_libraries(noisepage_objlib PUBLIC       # PUBLIC: all consumers of t
         gflags
         ips4o::ips4o
         madoka::madoka
+        mimalloc
         nlohmann_json::nlohmann_json
         pg_query::pg_query
         xbyak::xbyak
@@ -659,9 +667,9 @@ target_link_options(noisepage_static PUBLIC         # PUBLIC: all consumers of t
 # ninja looks for the files in DEPENDS and complains if those can't be found.
 if (${CMAKE_GENERATOR} MATCHES "Unix Makefiles")
     add_dependencies(noisepage_static spdlog)
-else()
+else ()
     add_custom_command(TARGET noisepage_static DEPENDS spdlog)
-endif()
+endif ()
 
 if (${NOISEPAGE_ENABLE_SHARED})
     add_library(noisepage_shared SHARED $<TARGET_OBJECTS:noisepage_objlib>)   # Bundle up these objects into shared lib.
