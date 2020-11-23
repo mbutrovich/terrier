@@ -156,7 +156,7 @@ print_sys_info("OS_NAME;OS_RELEASE;OS_VERSION;OS_PLATFORM")
 #   NOISEPAGE_UNITTEST_OUTPUT_ON_FAILURE    : Enable verbose unittest failures. Default OFF. Can be very verbose.
 #   NOISEPAGE_UNITY_BUILD                   : Enable unity (aka jumbo) builds. Default OFF.
 #   NOISEPAGE_USE_ASAN                      : Enable ASAN, a fast memory error detector. Default OFF.
-#   NOISEPAGE_USE_JEMALLOC                  : Link with jemalloc instead of system malloc. Default OFF.
+#   NOISEPAGE_USE_MIMALLOC                  : Link with mimalloc instead of system malloc. Default OFF.
 #   NOISEPAGE_USE_JUMBOTESTS                : Enable jumbotests instead of unittests as part of ALL target. Default OFF.
 #   NOISEPAGE_USE_LOGGING                   : Enable logging. Default ON.
 #
@@ -204,8 +204,8 @@ option(NOISEPAGE_USE_ASAN
         "Enable ASAN, a fast memory error detector. https://clang.llvm.org/docs/AddressSanitizer.html"
         OFF)
 
-option(NOISEPAGE_USE_JEMALLOC
-        "Link jemalloc instead of system malloc. https://github.com/jemalloc/jemalloc"
+option(NOISEPAGE_USE_MIMALLOC
+        "Link mimalloc instead of system malloc. https://github.com/microsot/mimalloc"
         OFF)
 
 option(NOISEPAGE_USE_JUMBOTESTS
@@ -267,20 +267,11 @@ endif ()
 message(STATUS "ASAN: ${NOISEPAGE_USE_ASAN}")
 unset(NOISEPAGE_ASAN_MSG)
 
-# jemalloc.
-set(NOISEPAGE_JEMALLOC_MSG "${NOISEPAGE_USE_JEMALLOC}")
-if (${NOISEPAGE_USE_JEMALLOC})
-    # We find jemalloc from the system to avoid building jemalloc from scratch.
-    find_path(JEMALLOC_INCLUDE_DIR NAMES jemalloc/jemalloc.h REQUIRED)
-    find_library(JEMALLOC_LIBRARIES NAMES jemalloc libjemalloc.so.1 libjemalloc.so.2 libjemalloc.dylib REQUIRED)
-    list(APPEND NOISEPAGE_LINK_LIBRARIES ${JEMALLOC_LIBRARIES})         # Add to NoisePage link libs.
-    list(APPEND NOISEPAGE_INCLUDE_DIRECTORIES ${JEMALLOC_INCLUDE_DIR})  # Add to NoisePage includes.
-    unset(JEMALLOC_INCLUDE_DIR)                                         # Variable hygiene.
-    unset(JEMALLOC_LIBRARIES)                                           # Variable hygiene.
-    set(NOISEPAGE_JEMALLOC_MSG "On (dir:${JEMALLOC_INCLUDE_DIR} lib:${JEMALLOC_LIBRARIES})")
+if (${NOISEPAGE_USE_MIMALLOC})
+    list(APPEND NOISEPAGE_LINK_LIBRARIES mimalloc)                          # Add to NoisePage link libs.
+    list(APPEND NOISEPAGE_COMPILE_DEFINITIONS "-DNOISEPAGE_USE_MIMALLOC")   # Variable to conditionally include stuff.
 endif ()
-message(STATUS "jemalloc: ${NOISEPAGE_JEMALLOC_MSG}")
-unset(NOISEPAGE_JEMALLOC_MSG)
+message(STATUS "mimalloc: ${NOISEPAGE_USE_MIMALLOC}")
 
 # spdlog.
 if (${NOISEPAGE_USE_LOGGING})
@@ -524,12 +515,13 @@ add_noisepage_dep(googletest https://github.com/google/googletest.git release-1.
 add_noisepage_dep(ips4o https://github.com/ips4o/ips4o.git 2fb65ca11ac1898faee2f146610e6409489d2105)
 add_noisepage_dep(madoka https://github.com/s-yata/madoka.git 66783ee5b84a432f934517ad65452d54b19230bb)
 add_noisepage_dep(mimalloc https://github.com/microsoft/mimalloc.git v1.6.7)
-target_compile_definitions(mimalloc PRIVATE MI_STAT=1)
 add_noisepage_dep(nlohmann_json https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git v3.7.3)
 add_noisepage_dep(spdlog https://github.com/gabime/spdlog.git v1.8.1)
 add_noisepage_dep(xbyak https://github.com/herumi/xbyak.git v5.77)
 add_noisepage_dep(xxHash https://github.com/Cyan4973/xxHash.git v0.8.0)
 add_noisepage_dep(fast_float https://github.com/lemire/fast_float.git v0.1.0)
+
+target_compile_definitions(mimalloc PRIVATE MI_STAT=1)
 
 # Handle other dependencies.
 
@@ -635,7 +627,6 @@ target_link_libraries(noisepage_objlib PUBLIC       # PUBLIC: all consumers of t
         gflags
         ips4o::ips4o
         madoka::madoka
-        mimalloc
         nlohmann_json::nlohmann_json
         pg_query::pg_query
         xbyak::xbyak
