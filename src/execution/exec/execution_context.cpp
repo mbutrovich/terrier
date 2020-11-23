@@ -1,13 +1,13 @@
 #include "execution/exec/execution_context.h"
 
-#include "brain/operating_unit.h"
-#include "brain/operating_unit_util.h"
 #include "common/thread_context.h"
 #include "execution/sql/value.h"
 #include "folly/tracing/StaticTracepoint.h"
 #include "metrics/metrics_manager.h"
 #include "metrics/metrics_store.h"
 #include "parser/expression/constant_value_expression.h"
+#include "self_driving/modeling/operating_unit.h"
+#include "self_driving/modeling/operating_unit_util.h"
 #include "transaction/transaction_context.h"
 
 namespace noisepage::execution::exec {
@@ -100,12 +100,12 @@ struct features {
 };
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
-                                          brain::ExecOUFeatureVector *ouvec) {
+                                          selfdriving::ExecOUFeatureVector *ouvec) {
   if (common::thread_context.metrics_store_ != nullptr && FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
-    const brain::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
+    const selfdriving::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
                                                               ouvec->pipeline_features_->end());
 
     struct features feats = {.query_id = static_cast<uint32_t>(query_id),
@@ -130,12 +130,12 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
   }
 }
 
-void ExecutionContext::InitializeOUFeatureVector(brain::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
-  auto *vec = new (ouvec) brain::ExecOUFeatureVector();
+void ExecutionContext::InitializeOUFeatureVector(selfdriving::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
+  auto *vec = new (ouvec) selfdriving::ExecOUFeatureVector();
   vec->pipeline_id_ = pipeline_id;
 
   auto &features = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
-  vec->pipeline_features_ = std::make_unique<execution::sql::MemPoolVector<brain::ExecutionOperatingUnitFeature>>(
+  vec->pipeline_features_ = std::make_unique<execution::sql::MemPoolVector<selfdriving::ExecutionOperatingUnitFeature>>(
       features.begin(), features.end(), GetMemoryPool());
 
   // Update num_concurrent
@@ -144,17 +144,18 @@ void ExecutionContext::InitializeOUFeatureVector(brain::ExecOUFeatureVector *ouv
   }
 }
 
-void ExecutionContext::InitializeParallelOUFeatureVector(brain::ExecOUFeatureVector *ouvec, pipeline_id_t pipeline_id) {
-  auto *vec = new (ouvec) brain::ExecOUFeatureVector();
+void ExecutionContext::InitializeParallelOUFeatureVector(selfdriving::ExecOUFeatureVector *ouvec,
+                                                         pipeline_id_t pipeline_id) {
+  auto *vec = new (ouvec) selfdriving::ExecOUFeatureVector();
   vec->pipeline_id_ = pipeline_id;
   vec->pipeline_features_ =
-      std::make_unique<execution::sql::MemPoolVector<brain::ExecutionOperatingUnitFeature>>(GetMemoryPool());
+      std::make_unique<execution::sql::MemPoolVector<selfdriving::ExecutionOperatingUnitFeature>>(GetMemoryPool());
 
   bool found_blocking = false;
-  brain::ExecutionOperatingUnitFeature feature;
+  selfdriving::ExecutionOperatingUnitFeature feature;
   auto features = pipeline_operating_units_->GetPipelineFeatures(pipeline_id);
   for (auto &feat : features) {
-    if (brain::OperatingUnitUtil::IsOperatingUnitTypeBlocking(feat.GetExecutionOperatingUnitType())) {
+    if (selfdriving::OperatingUnitUtil::IsOperatingUnitTypeBlocking(feat.GetExecutionOperatingUnitType())) {
       NOISEPAGE_ASSERT(!found_blocking, "Pipeline should only have 1 blocking");
       found_blocking = true;
       feature = feat;
@@ -167,22 +168,23 @@ void ExecutionContext::InitializeParallelOUFeatureVector(brain::ExecOUFeatureVec
   }
 
   switch (feature.GetExecutionOperatingUnitType()) {
-    case brain::ExecutionOperatingUnitType::HASHJOIN_BUILD:
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_MERGE_HASHJOIN, feature);
+    case selfdriving::ExecutionOperatingUnitType::HASHJOIN_BUILD:
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::PARALLEL_MERGE_HASHJOIN, feature);
       break;
-    case brain::ExecutionOperatingUnitType::AGGREGATE_BUILD:
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_MERGE_AGGBUILD, feature);
+    case selfdriving::ExecutionOperatingUnitType::AGGREGATE_BUILD:
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::PARALLEL_MERGE_AGGBUILD, feature);
       break;
-    case brain::ExecutionOperatingUnitType::SORT_BUILD:
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_STEP, feature);
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_MERGE_STEP, feature);
+    case selfdriving::ExecutionOperatingUnitType::SORT_BUILD:
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::PARALLEL_SORT_STEP, feature);
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::PARALLEL_SORT_MERGE_STEP, feature);
       break;
-    case brain::ExecutionOperatingUnitType::SORT_TOPK_BUILD:
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_TOPK_STEP, feature);
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::PARALLEL_SORT_TOPK_MERGE_STEP, feature);
+    case selfdriving::ExecutionOperatingUnitType::SORT_TOPK_BUILD:
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::PARALLEL_SORT_TOPK_STEP, feature);
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::PARALLEL_SORT_TOPK_MERGE_STEP,
+                                            feature);
       break;
-    case brain::ExecutionOperatingUnitType::CREATE_INDEX:
-      vec->pipeline_features_->emplace_back(brain::ExecutionOperatingUnitType::CREATE_INDEX_MAIN, feature);
+    case selfdriving::ExecutionOperatingUnitType::CREATE_INDEX:
+      vec->pipeline_features_->emplace_back(selfdriving::ExecutionOperatingUnitType::CREATE_INDEX_MAIN, feature);
       break;
     default:
       NOISEPAGE_ASSERT(false, "Unsupported parallel OU");
