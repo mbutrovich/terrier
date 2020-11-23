@@ -155,8 +155,8 @@ print_sys_info("OS_NAME;OS_RELEASE;OS_VERSION;OS_PLATFORM")
 #   NOISEPAGE_GENERATE_COVERAGE             : Enable C++ code coverage. Default OFF.
 #   NOISEPAGE_UNITTEST_OUTPUT_ON_FAILURE    : Enable verbose unittest failures. Default OFF. Can be very verbose.
 #   NOISEPAGE_UNITY_BUILD                   : Enable unity (aka jumbo) builds. Default OFF.
-#   NOISEPAGE_USE_ASAN                      : Enable ASAN, a fast memory error detector. Default OFF.
-#   NOISEPAGE_USE_MIMALLOC                  : Link with mimalloc instead of system malloc. Default OFF.
+#   NOISEPAGE_USE_ASAN                      : Enable ASAN, a fast memory error detector. Not compatible with NOISEPAGE_USE_MIMALLOC. Default OFF.
+#   NOISEPAGE_USE_MIMALLOC                  : Link with mimalloc instead of system malloc. Not compatible with NOISEPAGE_USE_ASAN. Default OFF.
 #   NOISEPAGE_USE_JUMBOTESTS                : Enable jumbotests instead of unittests as part of ALL target. Default OFF.
 #   NOISEPAGE_USE_LOGGING                   : Enable logging. Default ON.
 #
@@ -268,6 +268,9 @@ message(STATUS "ASAN: ${NOISEPAGE_USE_ASAN}")
 unset(NOISEPAGE_ASAN_MSG)
 
 if (${NOISEPAGE_USE_MIMALLOC})
+    if (${NOISEPAGE_USE_ASAN})
+        message(FATAL_ERROR "Invalid configuration for NOISEPAGE_USE_ASAN and NOISEPAGE_USE_MIMALLOC. Cannot enable both at the same time since both try to override memory allocation.")
+    endif ()
     list(APPEND NOISEPAGE_LINK_LIBRARIES mimalloc)                          # Add to NoisePage link libs.
     list(APPEND NOISEPAGE_COMPILE_DEFINITIONS "-DNOISEPAGE_USE_MIMALLOC")   # Variable to conditionally include stuff.
 endif ()
