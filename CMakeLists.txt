@@ -500,6 +500,7 @@ set(GFLAGS_BUILD_TESTING OFF)                       # Disable building gflags te
 set(GFLAGS_BUILD_PACKAGING OFF)                     # Disable building gflags packaging.
 
 # mimalloc build settings
+cmake_policy(SET CMP0077 OLD)                       # Override cached settings (https://cmake.org/cmake/help/latest/policy/CMP0077.html)
 set(MI_BUILD_STATIC OFF)                            # Disable building mimalloc static library
 set(MI_BUILD_OBJECT OFF)                            # Disable building mimalloc object library
 set(MI_BUILD_TESTS OFF)                             # Disable building mimalloc tests
