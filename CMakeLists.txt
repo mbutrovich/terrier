@@ -495,9 +495,9 @@ set(GFLAGS_BUILD_PACKAGING OFF)                     # Disable building gflags pa
 
 # mimalloc build settings
 cmake_policy(SET CMP0077 OLD)                       # Override cached settings (https://cmake.org/cmake/help/latest/policy/CMP0077.html)
-set(MI_BUILD_STATIC OFF)                            # Disable building mimalloc static library
-set(MI_BUILD_OBJECT OFF)                            # Disable building mimalloc object library
-set(MI_BUILD_TESTS OFF)                             # Disable building mimalloc tests
+set(MI_BUILD_STATIC OFF)                            # Disable building mimalloc static library, prefer dynamic linking
+set(MI_BUILD_OBJECT OFF)                            # Disable building mimalloc object library, used by static library
+set(MI_BUILD_TESTS OFF)                             # Disable building mimalloc tests.
 
 # ZeroMQ build settings.
 set(CPPZMQ_BUILD_TESTS OFF CACHE INTERNAL "Disable building CPPZMQ tests.")
@@ -523,8 +523,6 @@ add_noisepage_dep(spdlog https://github.com/gabime/spdlog.git v1.8.1)
 add_noisepage_dep(xbyak https://github.com/herumi/xbyak.git v5.77)
 add_noisepage_dep(xxHash https://github.com/Cyan4973/xxHash.git v0.8.0)
 add_noisepage_dep(fast_float https://github.com/lemire/fast_float.git v0.1.0)
-
-target_compile_definitions(mimalloc PRIVATE MI_STAT=1)
 
 # Handle other dependencies.
 

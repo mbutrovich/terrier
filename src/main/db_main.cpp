@@ -1,5 +1,8 @@
 #include "main/db_main.h"
 
+// "For best performance in C++ programs, it is also recommended to override the global new and delete operators. For
+// convenience, mimalloc provides mimalloc-new-delete.h which does this for you – just include it in a single(!) source
+// file in your project." https://microsoft.github.io/mimalloc/using.html
 #ifdef NOISEPAGE_USE_MIMALLOC
 #include "mimalloc/include/mimalloc-new-delete.h"
 #endif
