@@ -1,9 +1,5 @@
 #include "main/db_main.h"
 
-#ifdef NOISEPAGE_USE_MIMALLOC
-#include "mimalloc/include/mimalloc-new-delete.h"
-#endif
-
 #define __SETTING_GFLAGS_DEFINE__    // NOLINT
 #include "settings/settings_defs.h"  // NOLINT
 #undef __SETTING_GFLAGS_DEFINE__     // NOLINT
