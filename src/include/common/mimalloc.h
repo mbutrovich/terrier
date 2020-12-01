@@ -8,7 +8,7 @@
 #include "mimalloc/include/mimalloc-types.h"
 // clang-format on
 
-namespace terrier::common {
+namespace noisepage::common {
 class Mimalloc {
  public:
   Mimalloc() = delete;
@@ -23,4 +23,4 @@ class Mimalloc {
     return stats->page_committed.peak;
   }
 };
-}  // namespace terrier::common
+}  // namespace noisepage::common
