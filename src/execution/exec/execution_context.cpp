@@ -88,6 +88,7 @@ struct features {
   const uint32_t pipeline_id;
   const uint8_t num_features;
   uint8_t features[MAX_FEATURES];
+  const uint16_t cpu_freq;
   const uint8_t execution_mode;
   const uint64_t memory_bytes;
   uint32_t num_rows[MAX_FEATURES];
@@ -106,11 +107,12 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
     const selfdriving::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
-                                                              ouvec->pipeline_features_->end());
+                                                                    ouvec->pipeline_features_->end());
 
     struct features feats = {.query_id = static_cast<uint32_t>(query_id),
                              .pipeline_id = static_cast<uint32_t>(pipeline_id),
                              .num_features = static_cast<uint8_t>(features.size()),
+                             .cpu_freq = static_cast<uint16_t>(metrics::MetricsUtil::GetHardwareContext().cpu_mhz_),
                              .execution_mode = execution_mode_,
                              .memory_bytes = mem_size};
 
