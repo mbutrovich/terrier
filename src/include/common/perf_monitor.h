@@ -189,7 +189,7 @@ class PerfMonitor {
   /**
    * Number of currently enabled HW perf events. Update this if more are added.
    */
-  static constexpr uint8_t NUM_HW_EVENTS = 6;
+  static constexpr uint8_t NUM_HW_EVENTS = 5;
 
  private:
   PerfCounters ReadCounters() const {
@@ -221,11 +221,6 @@ class PerfMonitor {
     }
     return counters;
   }
-
-  /**
-   * Number of currently enabled HW perf events. Update this if more are added.
-   */
-  static constexpr uint8_t NUM_HW_EVENTS = 5;
 
  private:
   // set the first file descriptor to -1. Since event_files[0] is always passed into group_fd on
