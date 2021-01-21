@@ -77,8 +77,11 @@ void ExecutionContext::StartResourceTracker(metrics::MetricsComponent component)
 void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { UNREACHABLE("this is unused?"); }
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
-  mem_tracker_->Reset();
-  FOLLY_SDT(, pipeline__start);
+  if (common::thread_context.metrics_store_ != nullptr &&
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::EXECUTION_PIPELINE)) {
+    mem_tracker_->Reset();
+    FOLLY_SDT(, pipeline__start);
+  }
 }
 
 #define MAX_FEATURES 8
@@ -102,7 +105,9 @@ struct features {
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           selfdriving::ExecOUFeatureVector *ouvec) {
-  if (common::thread_context.metrics_store_ != nullptr && FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
+  if (common::thread_context.metrics_store_ != nullptr &&
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::EXECUTION_PIPELINE) &&
+      FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
