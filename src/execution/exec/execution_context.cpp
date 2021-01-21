@@ -78,7 +78,8 @@ void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { UNRE
 
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
   if (common::thread_context.metrics_store_ != nullptr &&
-      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::EXECUTION_PIPELINE)) {
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::EXECUTION_PIPELINE) &&
+      FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
     mem_tracker_->Reset();
     FOLLY_SDT(, pipeline__start);
     metrics_running_ = true;
