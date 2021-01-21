@@ -346,5 +346,6 @@ class EXPORT ExecutionContext {
   uint32_t num_concurrent_estimate_ = 0;
   std::vector<HookFn> hooks_{};
   void *query_state_;
+  bool metrics_running_ = false;
 };
 }  // namespace noisepage::execution::exec
