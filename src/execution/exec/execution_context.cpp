@@ -12,7 +12,7 @@
 
 namespace noisepage::execution::exec {
 
-FOLLY_SDT_DEFINE_SEMAPHORE(, pipeline__done);
+FOLLY_SDT_DEFINE_SEMAPHORE(, pipeline__features);
 
 OutputBuffer *ExecutionContext::OutputBufferNew() {
   if (schema_ == nullptr) {
@@ -79,7 +79,7 @@ void ExecutionContext::EndResourceTracker(const char *name, uint32_t len) { UNRE
 void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
   if (common::thread_context.metrics_store_ != nullptr &&
       common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::EXECUTION_PIPELINE) &&
-      FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
+      FOLLY_SDT_IS_ENABLED(, pipeline__features)) {
     mem_tracker_->Reset();
     FOLLY_SDT(, pipeline__start);
     metrics_running_ = true;
@@ -107,7 +107,8 @@ struct features {
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           selfdriving::ExecOUFeatureVector *ouvec) {
-  if (common::thread_context.metrics_store_ != nullptr && metrics_running_ && FOLLY_SDT_IS_ENABLED(, pipeline__done)) {
+  if (common::thread_context.metrics_store_ != nullptr && metrics_running_ && FOLLY_SDT_IS_ENABLED(, pipeline__features)) {
+    FOLLY_SDT(, pipeline__stop);
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
@@ -133,7 +134,7 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
       feats.num_loops[i] = static_cast<uint8_t>(op_feature.GetNumLoops());
       feats.num_concurrent[i] = static_cast<uint8_t>(op_feature.GetNumConcurrent());
     }
-    FOLLY_SDT_WITH_SEMAPHORE(, pipeline__done, &feats);
+    FOLLY_SDT_WITH_SEMAPHORE(, pipeline__features, &feats);
   }
 }
 
