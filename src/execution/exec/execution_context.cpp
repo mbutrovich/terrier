@@ -88,7 +88,7 @@ void ExecutionContext::StartPipelineTracker(pipeline_id_t pipeline_id) {
 
 #define MAX_FEATURES 8
 
-struct features {
+struct pipeline_features {
   const uint32_t query_id;
   const uint32_t pipeline_id;
   const uint8_t num_features;
@@ -107,20 +107,22 @@ struct features {
 
 void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipeline_id_t pipeline_id,
                                           selfdriving::ExecOUFeatureVector *ouvec) {
-  if (common::thread_context.metrics_store_ != nullptr && metrics_running_ && FOLLY_SDT_IS_ENABLED(, pipeline__features)) {
+  if (common::thread_context.metrics_store_ != nullptr && metrics_running_ &&
+      FOLLY_SDT_IS_ENABLED(, pipeline__features)) {
     FOLLY_SDT(, pipeline__stop);
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
+    // TODO(Matt): I think this can be optimized
     const selfdriving::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
                                                                     ouvec->pipeline_features_->end());
 
-    struct features feats = {.query_id = static_cast<uint32_t>(query_id),
-                             .pipeline_id = static_cast<uint32_t>(pipeline_id),
-                             .num_features = static_cast<uint8_t>(features.size()),
-                             .cpu_freq = static_cast<uint16_t>(metrics::MetricsUtil::GetHardwareContext().cpu_mhz_),
-                             .execution_mode = execution_mode_,
-                             .memory_bytes = mem_size};
+    pipeline_features feats = {.query_id = static_cast<uint32_t>(query_id),
+                               .pipeline_id = static_cast<uint32_t>(pipeline_id),
+                               .num_features = static_cast<uint8_t>(features.size()),
+                               .cpu_freq = static_cast<uint16_t>(metrics::MetricsUtil::GetHardwareContext().cpu_mhz_),
+                               .execution_mode = execution_mode_,
+                               .memory_bytes = mem_size};
 
     for (uint8_t i = 0; i < feats.num_features; i++) {
       NOISEPAGE_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
@@ -135,6 +137,7 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
       feats.num_concurrent[i] = static_cast<uint8_t>(op_feature.GetNumConcurrent());
     }
     FOLLY_SDT_WITH_SEMAPHORE(, pipeline__features, &feats);
+    metrics_running_ = false;
   }
 }
 

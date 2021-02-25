@@ -128,6 +128,9 @@ class LogSerializerTask : public common::DedicatedThreadTask {
   // Condition variable to signal disk log consumer task thread that a new full buffer has been pushed to the queue
   std::condition_variable *disk_log_writer_thread_cv_;
 
+  bool metrics_running_ =
+      false;  // because the check for metrics component enabled increments the counter for sampling, don't double count
+
   /**
    * Main serialization loop. Calls Process every interval. Processes all the accumulated log records and
    * serializes them to log consumer tasks.

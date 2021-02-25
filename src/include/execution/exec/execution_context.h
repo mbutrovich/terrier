@@ -346,6 +346,7 @@ class EXPORT ExecutionContext {
   uint32_t num_concurrent_estimate_ = 0;
   std::vector<HookFn> hooks_{};
   void *query_state_;
-  bool metrics_running_ = false;
+  bool metrics_running_ =
+      false;  // because the check for metrics component enabled increments the counter for sampling, don't double count
 };
 }  // namespace noisepage::execution::exec

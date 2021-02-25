@@ -5,11 +5,21 @@
 
 #include "common/scoped_timer.h"
 #include "common/thread_context.h"
+#include "folly/tracing/StaticTracepoint.h"
 #include "metrics/metrics_store.h"
 #include "transaction/transaction_context.h"
 #include "transaction/transaction_manager.h"
 
 namespace noisepage::storage {
+
+struct log_serializer_features {
+  const uint64_t num_bytes;
+  const uint64_t num_records;
+  const uint64_t num_txns;
+  const uint64_t interval;
+};
+
+FOLLY_SDT_DEFINE_SEMAPHORE(, log_serializer__features);
 
 void LogSerializerTask::LogSerializerTaskLoop() {
   auto curr_sleep = serialization_interval_;
@@ -19,14 +29,15 @@ void LogSerializerTask::LogSerializerTaskLoop() {
 
   uint64_t num_bytes = 0, num_records = 0, num_txns = 0;
 
-  do {
-    const bool logging_metrics_enabled =
-        common::thread_context.metrics_store_ != nullptr &&
-        common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING);
+  bool logging_metrics_enabled =
+      common::thread_context.metrics_store_ != nullptr &&
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING) &&
+      FOLLY_SDT_IS_ENABLED(, log_serializer__features);
 
-    if (logging_metrics_enabled && !common::thread_context.resource_tracker_.IsRunning()) {
-      // start the operating unit resource tracker
-      common::thread_context.resource_tracker_.Start();
+  do {
+    if (logging_metrics_enabled && !metrics_running_) {
+      FOLLY_SDT(, log_serializer__start);
+      metrics_running_ = true;
     }
 
     // Serializing is now on the "critical txn path" because txns wait to commit until their logs are serialized. Thus,
@@ -47,13 +58,19 @@ void LogSerializerTask::LogSerializerTaskLoop() {
     std::tie(num_bytes, num_records, num_txns) = Process();
     curr_sleep = std::min(num_records > 0 ? serialization_interval_ : curr_sleep * 2, max_sleep);
 
-    if (logging_metrics_enabled && num_records > 0) {
-      // Stop the resource tracker for this operating unit
-      common::thread_context.resource_tracker_.Stop();
-      auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
-      common::thread_context.metrics_store_->RecordSerializerData(num_bytes, num_records, num_txns,
-                                                                  serialization_interval_.count(), resource_metrics);
+    if (metrics_running_ && num_records > 0) {
+      FOLLY_SDT(, log_serializer__stop);
+      log_serializer_features feats = {.num_bytes = num_bytes,
+                                       .num_records = num_records,
+                                       .num_txns = num_txns,
+                                       .interval = static_cast<uint64_t>(serialization_interval_.count())};
+      FOLLY_SDT_WITH_SEMAPHORE(, log_serializer__features, &feats);
       num_bytes = num_records = num_txns = 0;
+      logging_metrics_enabled =
+          common::thread_context.metrics_store_ != nullptr &&
+          common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING) &&
+          FOLLY_SDT_IS_ENABLED(, log_serializer__features);
+      metrics_running_ = false;
     }
   } while (run_task_);
   // To be extra sure we processed everything

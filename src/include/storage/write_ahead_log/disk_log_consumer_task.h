@@ -79,6 +79,8 @@ class DiskLogConsumerTask : public common::DedicatedThreadTask {
   // initiated, then quit
   std::condition_variable disk_log_writer_thread_cv_;
 
+  bool metrics_running_ =
+      false;  // because the check for metrics component enabled increments the counter for sampling, don't double count
   /**
    * Main disk log consumer task loop. Flushes buffers to disk when new buffers are handed to it via
    * filled_buffer_queue_, or when notified by LogManager to persist buffers

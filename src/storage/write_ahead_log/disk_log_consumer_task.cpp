@@ -4,9 +4,18 @@
 
 #include "common/scoped_timer.h"
 #include "common/thread_context.h"
+#include "folly/tracing/StaticTracepoint.h"
 #include "metrics/metrics_store.h"
 
 namespace noisepage::storage {
+
+FOLLY_SDT_DEFINE_SEMAPHORE(, disk_log_consumer__features);
+
+struct disk_log_consumer_features {
+  const uint64_t num_bytes;
+  const uint64_t num_buffers;
+  const uint64_t interval;
+};
 
 void DiskLogConsumerTask::RunTask() {
   run_task_ = true;
@@ -68,14 +77,16 @@ void DiskLogConsumerTask::DiskLogConsumerTaskLoop() {
   auto last_persist = std::chrono::high_resolution_clock::now();
   // Disk log consumer task thread spins in this loop. When notified or periodically, we wake up and process serialized
   // buffers
-  do {
-    const bool logging_metrics_enabled =
-        common::thread_context.metrics_store_ != nullptr &&
-        common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING);
 
-    if (logging_metrics_enabled && !common::thread_context.resource_tracker_.IsRunning()) {
-      // start the operating unit resource tracker
-      common::thread_context.resource_tracker_.Start();
+  bool logging_metrics_enabled =
+      common::thread_context.metrics_store_ != nullptr &&
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING) &&
+      FOLLY_SDT_IS_ENABLED(, disk_log_consumer__features);
+
+  do {
+    if (logging_metrics_enabled && !metrics_running_) {
+      FOLLY_SDT(, disk_log_consumer__start);
+      metrics_running_ = true;
     }
 
     curr_sleep = next_sleep;
@@ -118,13 +129,18 @@ void DiskLogConsumerTask::DiskLogConsumerTaskLoop() {
       persist_cv_.notify_all();
     }
 
-    if (logging_metrics_enabled && num_buffers > 0) {
-      // Stop the resource tracker for this operating unit
-      common::thread_context.resource_tracker_.Stop();
-      auto &resource_metrics = common::thread_context.resource_tracker_.GetMetrics();
-      common::thread_context.metrics_store_->RecordConsumerData(num_bytes, num_buffers, persist_interval_.count(),
-                                                                resource_metrics);
+    if (metrics_running_ && num_buffers > 0) {
+      FOLLY_SDT(, disk_log_consumer__stop);
+      disk_log_consumer_features feats = {.num_bytes = num_bytes,
+                                          .num_buffers = num_buffers,
+                                          .interval = static_cast<uint64_t>(persist_interval_.count())};
+      FOLLY_SDT_WITH_SEMAPHORE(, disk_log_consumer__features, &feats);
       num_bytes = num_buffers = 0;
+      logging_metrics_enabled =
+          common::thread_context.metrics_store_ != nullptr &&
+          common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING) &&
+          FOLLY_SDT_IS_ENABLED(, disk_log_consumer__features);
+      metrics_running_ = false;
     }
   } while (run_task_);
   // Be extra sure we processed everything
