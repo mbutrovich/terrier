@@ -1,4 +1,6 @@
 #include <csignal>
+#include <iostream>
+#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -58,6 +60,9 @@ int main(int argc, char *argv[]) {
   if (register_result != 0) {
     return register_result;
   }
+
+  std::string pause;
+  std::cin >> pause;
 
   // Parse Setting Values
   ::gflags::SetUsageMessage("Usage Info: \n");
