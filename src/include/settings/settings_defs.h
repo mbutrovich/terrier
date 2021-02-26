@@ -390,7 +390,15 @@ SETTING_string(
 SETTING_string(
     model_save_path,
     "Save path of the model relative to the build path (default: ../script/model/terrier_model_server_trained/mini_model_test.pickle)",
-    "/../script/model/terrier_model_server_trained/mini_model_test.pickle",
+    "../script/model/terrier_model_server_trained/mini_model_test.pickle",
+    false,
+    noisepage::settings::Callbacks::NoOp
+)
+
+SETTING_string(
+    bytecode_handlers_path,
+    "The path to the bytecode handlers bitcode file (default: ./bytecode_handlers_ir.bc)",
+    "./bytecode_handlers_ir.bc",
     false,
     noisepage::settings::Callbacks::NoOp
 )
