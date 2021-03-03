@@ -13,6 +13,18 @@
 
 namespace noisepage::network {
 
+enum class NetworkOperatingUnit : uint8_t { INVALID = 0, READ = 1, WRITE = 2 };
+
+struct network_features {
+  NetworkOperatingUnit operating_unit_ = NetworkOperatingUnit::INVALID;
+  uint64_t num_simple_query_ = 0;
+  uint64_t num_parse_ = 0;
+  uint64_t num_bind_ = 0;
+  uint64_t num_describe_ = 0;
+  uint64_t num_execute_ = 0;
+  uint64_t num_sync_ = 0;
+};
+
 /**
  * A ConnectionContext stores the state of a connection. There should be as little as possible that is protocol-specific
  * in this layer, and if you find yourself wanting to put more the design should be discussed.
@@ -165,6 +177,8 @@ class ConnectionContext {
    * @return CatalogCache to be injected into requests for CatalogAcessors
    */
   common::ManagedPointer<catalog::CatalogCache> GetCatalogCache() { return common::ManagedPointer(&catalog_cache_); }
+
+  network_features features_;
 
  private:
   /**

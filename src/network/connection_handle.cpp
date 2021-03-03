@@ -1,13 +1,15 @@
 #include "network/connection_handle.h"
 
+#include "folly/tracing/StaticTracepoint.h"
 #include "loggers/network_logger.h"
 #include "network/connection_dispatcher_task.h"
 #include "network/connection_handle_factory.h"
-#include <iostream>
 #include "network/connection_handler_task.h"
 #include "network/network_io_wrapper.h"
 
 namespace noisepage::network {
+
+FOLLY_SDT_DEFINE_SEMAPHORE(, network__features);
 
 /** ConnectionHandleStateMachineTransition implements ConnectionHandle::StateMachine::Delta's transition function. */
 class ConnectionHandleStateMachineTransition {
@@ -171,11 +173,26 @@ void ConnectionHandle::HandleEvent(int fd, int16_t flags) {
   state_machine_.Accept(t, common::ManagedPointer<ConnectionHandle>(this));
 }
 
-Transition ConnectionHandle::TryRead() { return io_wrapper_->FillReadBuffer(); }
+Transition ConnectionHandle::TryRead() {
+  const auto socket_fd = io_wrapper_->GetSocketFd();
+  FOLLY_SDT(, network__start, socket_fd);
+  const auto read_transition = io_wrapper_->FillReadBuffer();
+  FOLLY_SDT(, network__stop, socket_fd);
+  return read_transition;
+}
 
 Transition ConnectionHandle::TryWrite() {
   if (io_wrapper_->ShouldFlush()) {
-    return io_wrapper_->FlushAllWrites();
+    const auto socket_fd = io_wrapper_->GetSocketFd();
+    context_.features_.operating_unit_ = NetworkOperatingUnit::READ;
+    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.features_);
+    FOLLY_SDT(, network__start, socket_fd);
+    const auto write_transition = io_wrapper_->FlushAllWrites();
+    FOLLY_SDT(, network__stop, socket_fd);
+    context_.features_.operating_unit_ = NetworkOperatingUnit::WRITE;
+    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.features_);
+    context_.features_ = {};
+    return write_transition;
   }
   return Transition::PROCEED;
 }
