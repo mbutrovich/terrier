@@ -15,7 +15,8 @@ namespace noisepage::network {
 
 enum class NetworkOperatingUnit : uint8_t { INVALID = 0, READ = 1, WRITE = 2 };
 
-struct network_features {
+class network_features {
+ public:
   NetworkOperatingUnit operating_unit_ = NetworkOperatingUnit::INVALID;
   uint64_t num_simple_query_ = 0;
   uint64_t num_parse_ = 0;
@@ -23,6 +24,15 @@ struct network_features {
   uint64_t num_describe_ = 0;
   uint64_t num_execute_ = 0;
   uint64_t num_sync_ = 0;
+
+  void Add(const network_features &other) {
+    this->num_simple_query_ += other.num_simple_query_;
+    this->num_parse_ += other.num_parse_;
+    this->num_bind_ += other.num_bind_;
+    this->num_describe_ += other.num_describe_;
+    this->num_execute_ += other.num_execute_;
+    this->num_sync_ += other.num_sync_;
+  }
 };
 
 /**
@@ -178,7 +188,8 @@ class ConnectionContext {
    */
   common::ManagedPointer<catalog::CatalogCache> GetCatalogCache() { return common::ManagedPointer(&catalog_cache_); }
 
-  network_features features_;
+  network_features read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
+  network_features write_features_ = {.operating_unit_ = NetworkOperatingUnit::WRITE};
 
  private:
   /**

@@ -174,24 +174,34 @@ void ConnectionHandle::HandleEvent(int fd, int16_t flags) {
 }
 
 Transition ConnectionHandle::TryRead() {
+  if (flush_read_features_) {
+    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.read_features_);
+    flush_read_features_ = false;
+    context_.write_features_.Add(context_.read_features_);
+    context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
+  }
   const auto socket_fd = io_wrapper_->GetSocketFd();
   FOLLY_SDT(, network__start, socket_fd);
   const auto read_transition = io_wrapper_->FillReadBuffer();
   FOLLY_SDT(, network__stop, socket_fd);
+  flush_read_features_ = true;
   return read_transition;
 }
 
 Transition ConnectionHandle::TryWrite() {
   if (io_wrapper_->ShouldFlush()) {
+    if (flush_read_features_) {
+      FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.read_features_);
+      flush_read_features_ = false;
+      context_.write_features_.Add(context_.read_features_);
+      context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
+    }
     const auto socket_fd = io_wrapper_->GetSocketFd();
-    context_.features_.operating_unit_ = NetworkOperatingUnit::READ;
-    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.features_);
     FOLLY_SDT(, network__start, socket_fd);
     const auto write_transition = io_wrapper_->FlushAllWrites();
     FOLLY_SDT(, network__stop, socket_fd);
-    context_.features_.operating_unit_ = NetworkOperatingUnit::WRITE;
-    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.features_);
-    context_.features_ = {};
+    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.write_features_);
+    context_.write_features_ = {.operating_unit_ = NetworkOperatingUnit::WRITE};
     return write_transition;
   }
   return Transition::PROCEED;
