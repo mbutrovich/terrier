@@ -108,6 +108,12 @@ enum class ExecutionOperatingUnitType : uint8_t {
    * translator (which requires an OpUnit type). We skip this OpUnit in the OperatingUnitRecorder.
    */
   LIMIT,
+  /**
+   * ANALYZE
+   * We don't model ANALYZE but we keep this OpUnit type since there's an ANALYZE translator (which requires an OpUnit
+   * type). We skip this OpUnit in the OperatingUnitRecorder.
+   */
+  ANALYZE,
 
   /**
    * num_rows: index size
