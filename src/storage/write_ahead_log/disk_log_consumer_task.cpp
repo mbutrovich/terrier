@@ -129,18 +129,20 @@ void DiskLogConsumerTask::DiskLogConsumerTaskLoop() {
       persist_cv_.notify_all();
     }
 
-    if (metrics_running_ && num_buffers > 0) {
-      FOLLY_SDT(, disk_log_consumer__stop);
-      disk_log_consumer_features feats = {.num_bytes = num_bytes,
-                                          .num_buffers = num_buffers,
-                                          .interval = static_cast<uint64_t>(persist_interval_.count())};
-      FOLLY_SDT_WITH_SEMAPHORE(, disk_log_consumer__features, &feats);
+    if (num_buffers > 0) {
+      if (metrics_running_) {
+        FOLLY_SDT(, disk_log_consumer__stop);
+        disk_log_consumer_features feats = {.num_bytes = num_bytes,
+                                            .num_buffers = num_buffers,
+                                            .interval = static_cast<uint64_t>(persist_interval_.count())};
+        FOLLY_SDT_WITH_SEMAPHORE(, disk_log_consumer__features, &feats);
+        metrics_running_ = false;
+      }
       num_bytes = num_buffers = 0;
       logging_metrics_enabled =
           common::thread_context.metrics_store_ != nullptr &&
           common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING) &&
           FOLLY_SDT_IS_ENABLED(, disk_log_consumer__features);
-      metrics_running_ = false;
     }
   } while (run_task_);
   // Be extra sure we processed everything

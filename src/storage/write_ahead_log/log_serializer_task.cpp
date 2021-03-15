@@ -59,19 +59,21 @@ void LogSerializerTask::LogSerializerTaskLoop() {
     std::tie(num_bytes, num_records, num_txns) = Process();
     curr_sleep = std::min(num_records > 0 ? serialization_interval_ : curr_sleep * 2, max_sleep);
 
-    if (metrics_running_ && num_records > 0) {
-      FOLLY_SDT(, log_serializer__stop);
-      log_serializer_features feats = {.num_bytes = num_bytes,
-                                       .num_records = num_records,
-                                       .num_txns = num_txns,
-                                       .interval = static_cast<uint64_t>(serialization_interval_.count())};
-      FOLLY_SDT_WITH_SEMAPHORE(, log_serializer__features, &feats);
+    if (num_records > 0) {
+      if (metrics_running_) {
+        FOLLY_SDT(, log_serializer__stop);
+        log_serializer_features feats = {.num_bytes = num_bytes,
+                                         .num_records = num_records,
+                                         .num_txns = num_txns,
+                                         .interval = static_cast<uint64_t>(serialization_interval_.count())};
+        FOLLY_SDT_WITH_SEMAPHORE(, log_serializer__features, &feats);
+        metrics_running_ = false;
+      }
       num_bytes = num_records = num_txns = 0;
       logging_metrics_enabled =
           common::thread_context.metrics_store_ != nullptr &&
           common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::LOGGING) &&
           FOLLY_SDT_IS_ENABLED(, log_serializer__features);
-      metrics_running_ = false;
     }
   } while (run_task_);
   // To be extra sure we processed everything
