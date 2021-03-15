@@ -85,6 +85,10 @@ std::array<std::unique_ptr<AbstractRawData>, NUM_COMPONENTS> MetricsStore::GetDa
           result[component] = query_trace_metric_->Swap();
           break;
         }
+        case MetricsComponent::NETWORK: {
+          // no-op
+          break;
+        }
       }
     }
   }

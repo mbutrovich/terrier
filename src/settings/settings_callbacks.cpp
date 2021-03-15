@@ -140,6 +140,14 @@ void Callbacks::MetricsLoggingSampleRate(void *old_value, void *new_value, DBMai
   action_context->SetState(common::ActionState::SUCCESS);
 }
 
+void Callbacks::MetricsNetworkSampleRate(void *old_value, void *new_value, DBMain *db_main,
+                                         common::ManagedPointer<common::ActionContext> action_context) {
+  action_context->SetState(common::ActionState::IN_PROGRESS);
+  int interval = *static_cast<int *>(new_value);
+  db_main->GetMetricsManager()->SetMetricSampleRate(metrics::MetricsComponent::NETWORK, static_cast<uint8_t>(interval));
+  action_context->SetState(common::ActionState::SUCCESS);
+}
+
 void Callbacks::MetricsBindCommand(void *const old_value, void *const new_value, DBMain *const db_main,
                                    common::ManagedPointer<common::ActionContext> action_context) {
   action_context->SetState(common::ActionState::IN_PROGRESS);
@@ -170,6 +178,17 @@ void Callbacks::MetricsQueryTrace(void *const old_value, void *const new_value, 
     db_main->GetMetricsManager()->EnableMetric(metrics::MetricsComponent::QUERY_TRACE);
   else
     db_main->GetMetricsManager()->DisableMetric(metrics::MetricsComponent::QUERY_TRACE);
+  action_context->SetState(common::ActionState::SUCCESS);
+}
+
+void Callbacks::MetricsNetwork(void *const old_value, void *const new_value, DBMain *const db_main,
+                               common::ManagedPointer<common::ActionContext> action_context) {
+  action_context->SetState(common::ActionState::IN_PROGRESS);
+  bool new_status = *static_cast<bool *>(new_value);
+  if (new_status)
+    db_main->GetMetricsManager()->EnableMetric(metrics::MetricsComponent::NETWORK);
+  else
+    db_main->GetMetricsManager()->DisableMetric(metrics::MetricsComponent::NETWORK);
   action_context->SetState(common::ActionState::SUCCESS);
 }
 

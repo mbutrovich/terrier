@@ -121,6 +121,10 @@ void MetricsManager::ResetMetric(const MetricsComponent component) const {
         metric->Swap();
         break;
       }
+      case MetricsComponent::NETWORK: {
+        // no-op
+        break;
+      }
     }
   }
 }
@@ -183,6 +187,10 @@ void MetricsManager::ToCSV() const {
         }
         case MetricsComponent::QUERY_TRACE: {
           OpenFiles<QueryTraceMetricRawData>(&outfiles);
+          break;
+        }
+        case MetricsComponent::NETWORK: {
+          // no-op
           break;
         }
       }

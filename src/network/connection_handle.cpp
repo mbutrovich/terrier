@@ -1,7 +1,9 @@
 #include "network/connection_handle.h"
 
+#include "common/thread_context.h"
 #include "folly/tracing/StaticTracepoint.h"
 #include "loggers/network_logger.h"
+#include "metrics/metrics_store.h"
 #include "network/connection_dispatcher_task.h"
 #include "network/connection_handle_factory.h"
 #include "network/connection_handler_task.h"
@@ -173,36 +175,52 @@ void ConnectionHandle::HandleEvent(int fd, int16_t flags) {
   state_machine_.Accept(t, common::ManagedPointer<ConnectionHandle>(this));
 }
 
-Transition ConnectionHandle::TryRead() {
-  if (flush_read_features_) {
-    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.read_features_);
-    flush_read_features_ = false;
-    context_.write_features_.Add(context_.read_features_);
-    context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
-  }
-  const auto socket_fd = io_wrapper_->GetSocketFd();
-  FOLLY_SDT(, network__start, socket_fd);
-  const auto read_transition = io_wrapper_->FillReadBuffer();
-  FOLLY_SDT(, network__stop, socket_fd);
-  flush_read_features_ = true;
-  return read_transition;
+static void FlushNetworkFeatures(const common::ManagedPointer<network_features> features) {
+  FOLLY_SDT_WITH_SEMAPHORE(, network__features, features.Get());
 }
 
-Transition ConnectionHandle::TryWrite() {
-  if (io_wrapper_->ShouldFlush()) {
+Transition ConnectionHandle::TryRead() {
+  const bool do_a_metrics_thing =
+      common::thread_context.metrics_store_ != nullptr &&
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK) &&
+      FOLLY_SDT_IS_ENABLED(, network__features);
+  if (do_a_metrics_thing) {
     if (flush_read_features_) {
-      FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.read_features_);
+      FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
       flush_read_features_ = false;
-      context_.write_features_.Add(context_.read_features_);
       context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
     }
     const auto socket_fd = io_wrapper_->GetSocketFd();
     FOLLY_SDT(, network__start, socket_fd);
-    const auto write_transition = io_wrapper_->FlushAllWrites();
+    const auto read_transition = io_wrapper_->FillReadBuffer();
     FOLLY_SDT(, network__stop, socket_fd);
-    FOLLY_SDT_WITH_SEMAPHORE(, network__features, &context_.write_features_);
-    context_.write_features_ = {.operating_unit_ = NetworkOperatingUnit::WRITE};
-    return write_transition;
+    flush_read_features_ = true;
+    return read_transition;
+  }
+  return io_wrapper_->FillReadBuffer();
+}
+
+Transition ConnectionHandle::TryWrite() {
+  if (io_wrapper_->ShouldFlush()) {
+    const bool do_a_metrics_thing =
+        common::thread_context.metrics_store_ != nullptr &&
+        common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK) &&
+        FOLLY_SDT_IS_ENABLED(, network__features);
+    if (do_a_metrics_thing) {
+      if (flush_read_features_) {
+        FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+        flush_read_features_ = false;
+        context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
+      }
+      const auto socket_fd = io_wrapper_->GetSocketFd();
+      FOLLY_SDT(, network__start, socket_fd);
+      const auto write_transition = io_wrapper_->FlushAllWrites();
+      FOLLY_SDT(, network__stop, socket_fd);
+      FlushNetworkFeatures(common::ManagedPointer(&context_.write_features_));
+      context_.write_features_ = {.operating_unit_ = NetworkOperatingUnit::WRITE};
+      return write_transition;
+    }
+    return io_wrapper_->FlushAllWrites();
   }
   return Transition::PROCEED;
 }

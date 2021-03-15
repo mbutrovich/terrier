@@ -24,15 +24,6 @@ class network_features {
   uint64_t num_describe_ = 0;
   uint64_t num_execute_ = 0;
   uint64_t num_sync_ = 0;
-
-  void Add(const network_features &other) {
-    this->num_simple_query_ += other.num_simple_query_;
-    this->num_parse_ += other.num_parse_;
-    this->num_bind_ += other.num_bind_;
-    this->num_describe_ += other.num_describe_;
-    this->num_execute_ += other.num_execute_;
-    this->num_sync_ += other.num_sync_;
-  }
 };
 
 /**
@@ -139,7 +130,7 @@ class ConnectionContext {
 
   /**
    * @param txn new value
-   * @warning this should only be used by TrafficCop::BeginTransaction and TrafficCop::EndTransaction
+   * @warning this should only be used by TrafficCop::BeginTransa\ction and TrafficCop::EndTransaction
    * @warning it should match the txn used for this ConnectionContext's current CatalogAccessor
    */
   void SetTransaction(const common::ManagedPointer<transaction::TransactionContext> txn) { txn_ = txn; }

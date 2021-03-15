@@ -14,8 +14,9 @@ enum class MetricsComponent : uint8_t {
   BIND_COMMAND,
   EXECUTE_COMMAND,
   QUERY_TRACE,
+  NETWORK,
 };
 
-constexpr uint8_t NUM_COMPONENTS = 8;
+constexpr uint8_t NUM_COMPONENTS = 9;
 
 }  // namespace noisepage::metrics
