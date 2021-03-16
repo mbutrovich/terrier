@@ -91,7 +91,7 @@ class EXPORT ExecutionContext {
       : exec_settings_(exec_settings),
         db_oid_(db_oid),
         txn_(txn),
-        mem_tracker_(std::make_unique<sql::MemoryTracker>()),
+        mem_tracker_(nullptr),
         mem_pool_(std::make_unique<sql::MemoryPool>(common::ManagedPointer<sql::MemoryTracker>(mem_tracker_))),
         schema_(schema),
         callback_(callback),

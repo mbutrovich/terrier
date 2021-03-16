@@ -118,20 +118,17 @@ void ExecutionContext::EndPipelineTracker(const query_id_t query_id, const pipel
     const auto mem_size = memory_use_override_ ? memory_use_override_value_ : mem_tracker_->GetAllocatedSize();
 
     NOISEPAGE_ASSERT(pipeline_id == ouvec->pipeline_id_, "Incorrect feature vector pipeline id?");
-    // TODO(Matt): I think this can be optimized
-    const selfdriving::ExecutionOperatingUnitFeatureVector features(ouvec->pipeline_features_->begin(),
-                                                                    ouvec->pipeline_features_->end());
+    NOISEPAGE_ASSERT(ouvec->pipeline_features_->size() < MAX_FEATURES, "Too many operators in this pipeline.");
 
     pipeline_features feats = {.query_id = static_cast<uint32_t>(query_id),
                                .pipeline_id = static_cast<uint32_t>(pipeline_id),
-                               .num_features = static_cast<uint8_t>(features.size()),
+                               .num_features = static_cast<uint8_t>(ouvec->pipeline_features_->size()),
                                .cpu_freq = static_cast<uint16_t>(metrics::MetricsUtil::GetHardwareContext().cpu_mhz_),
                                .execution_mode = execution_mode_,
                                .memory_bytes = mem_size};
 
-    for (uint8_t i = 0; i < feats.num_features; i++) {
-      NOISEPAGE_ASSERT(i < MAX_FEATURES, "Too many operators in this pipeline.");
-      const auto &op_feature = features[i];
+    for (uint8_t i = 0; i < ouvec->pipeline_features_->size(); i++) {
+      const auto &op_feature = (*(ouvec->pipeline_features_))[i];
       feats.features[i] = static_cast<uint8_t>(op_feature.GetExecutionOperatingUnitType());
       feats.num_rows[i] = static_cast<uint32_t>(op_feature.GetNumRows());
       feats.key_sizes[i] = static_cast<uint16_t>(op_feature.GetKeySize());
