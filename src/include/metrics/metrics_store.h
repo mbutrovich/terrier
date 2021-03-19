@@ -19,6 +19,7 @@
 #include "metrics/garbage_collection_metric.h"
 #include "metrics/logging_metric.h"
 #include "metrics/metrics_defs.h"
+#include "metrics/network_metric.h"
 #include "metrics/pipeline_metric.h"
 #include "metrics/query_trace_metric.h"
 #include "metrics/transaction_metric.h"
@@ -210,6 +211,20 @@ class MetricsStore {
   }
 
   /**
+   * Record query execution history
+   * @param db_oid Database OID
+   * @param query_id id of the query
+   * @param timestamp time of the query execution
+   * @param param parameter associated with this query
+   */
+  void RecordNetworkData(const network::network_features &features,
+                         const common::ResourceTracker::Metrics &resource_metrics) {
+    NOISEPAGE_ASSERT(ComponentEnabled(MetricsComponent::NETWORK), "NetworkMetric not enabled.");
+    NOISEPAGE_ASSERT(network_metric_ != nullptr, "NetworkMetric not allocated. Check MetricsStore constructor.");
+    network_metric_->RecordNetworkData(features, resource_metrics);
+  }
+
+  /**
    * @param component metrics component to test
    * @return true if metrics enabled for this component, false otherwise
    */
@@ -258,6 +273,7 @@ class MetricsStore {
   std::unique_ptr<PipelineMetric> pipeline_metric_;
   std::unique_ptr<BindCommandMetric> bind_command_metric_;
   std::unique_ptr<ExecuteCommandMetric> execute_command_metric_;
+  std::unique_ptr<NetworkMetric> network_metric_;
 
   const std::bitset<NUM_COMPONENTS> &enabled_metrics_;
   const std::array<std::vector<bool>, NUM_COMPONENTS> &samples_mask_;

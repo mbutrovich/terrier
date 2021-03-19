@@ -314,13 +314,23 @@ SETTING_int(
 )
 
 SETTING_int(
-  logging_metrics_sample_rate,
-  "Sampling rate of metrics collection for logging.",
-  100,
-  0,
-  100,
-  true,
-  noisepage::settings::Callbacks::MetricsLoggingSampleRate
+    logging_metrics_sample_rate,
+    "Sampling rate of metrics collection for logging.",
+    100,
+    0,
+    100,
+    true,
+    noisepage::settings::Callbacks::MetricsLoggingSampleRate
+)
+
+SETTING_int(
+    network_metrics_sample_rate,
+    "Sampling rate of metrics collection for network layer.",
+    100,
+    0,
+    100,
+    true,
+    noisepage::settings::Callbacks::MetricsNetworkSampleRate
 )
 
 SETTING_bool(
@@ -337,6 +347,14 @@ SETTING_bool(
     false,
     true,
     noisepage::settings::Callbacks::MetricsExecuteCommand
+)
+
+SETTING_bool(
+    network_metrics_enable,
+    "Metrics collection for the network layer.",
+    false,
+    true,
+    noisepage::settings::Callbacks::MetricsNetwork
 )
 
 SETTING_bool(

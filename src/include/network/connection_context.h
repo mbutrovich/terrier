@@ -117,7 +117,7 @@ class ConnectionContext {
 
   /**
    * @param txn new value
-   * @warning this should only be used by TrafficCop::BeginTransaction and TrafficCop::EndTransaction
+   * @warning this should only be used by TrafficCop::BeginTransa\ction and TrafficCop::EndTransaction
    * @warning it should match the txn used for this ConnectionContext's current CatalogAccessor
    */
   void SetTransaction(const common::ManagedPointer<transaction::TransactionContext> txn) { txn_ = txn; }
@@ -165,6 +165,9 @@ class ConnectionContext {
    * @return CatalogCache to be injected into requests for CatalogAcessors
    */
   common::ManagedPointer<catalog::CatalogCache> GetCatalogCache() { return common::ManagedPointer(&catalog_cache_); }
+
+  network_features read_features_ = {.operating_unit_ = 1};
+  network_features write_features_ = {.operating_unit_ = 2};
 
  private:
   /**

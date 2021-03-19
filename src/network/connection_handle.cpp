@@ -1,6 +1,8 @@
 #include "network/connection_handle.h"
 
+#include "common/thread_context.h"
 #include "loggers/network_logger.h"
+#include "metrics/metrics_store.h"
 #include "network/connection_dispatcher_task.h"
 #include "network/connection_handle_factory.h"
 #include "network/connection_handler_task.h"
@@ -169,10 +171,46 @@ void ConnectionHandle::HandleEvent(int fd, int16_t flags) {
   state_machine_.Accept(t, common::ManagedPointer<ConnectionHandle>(this));
 }
 
-Transition ConnectionHandle::TryRead() { return io_wrapper_->FillReadBuffer(); }
+Transition ConnectionHandle::TryRead() {
+  const bool do_a_metrics_thing =
+      common::thread_context.metrics_store_ != nullptr &&
+      common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK);
+  if (do_a_metrics_thing) {
+    if (flush_read_features_) {
+      common::thread_context.metrics_store_->RecordNetworkData(context_.read_features_,
+                                                               common::thread_context.resource_tracker_.GetMetrics());
+      flush_read_features_ = false;
+      context_.read_features_ = {.operating_unit_ = 1};
+    }
+    common::thread_context.resource_tracker_.Start();
+    const auto read_transition = io_wrapper_->FillReadBuffer();
+    common::thread_context.resource_tracker_.Stop();
+    flush_read_features_ = true;
+    return read_transition;
+  }
+  return io_wrapper_->FillReadBuffer();
+}
 
 Transition ConnectionHandle::TryWrite() {
   if (io_wrapper_->ShouldFlush()) {
+    const bool do_a_metrics_thing =
+        common::thread_context.metrics_store_ != nullptr &&
+        common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK);
+    if (do_a_metrics_thing) {
+      if (flush_read_features_) {
+        common::thread_context.metrics_store_->RecordNetworkData(context_.read_features_,
+                                                                 common::thread_context.resource_tracker_.GetMetrics());
+        flush_read_features_ = false;
+        context_.read_features_ = {.operating_unit_ = 1};
+      }
+      common::thread_context.resource_tracker_.Start();
+      const auto write_transition = io_wrapper_->FlushAllWrites();
+      common::thread_context.resource_tracker_.Stop();
+      common::thread_context.metrics_store_->RecordNetworkData(context_.write_features_,
+                                                               common::thread_context.resource_tracker_.GetMetrics());
+      context_.write_features_ = {.operating_unit_ = 2};
+      return write_transition;
+    }
     return io_wrapper_->FlushAllWrites();
   }
   return Transition::PROCEED;

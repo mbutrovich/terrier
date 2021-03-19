@@ -21,6 +21,7 @@ MetricsStore::MetricsStore(const common::ManagedPointer<metrics::MetricsManager>
   bind_command_metric_ = std::make_unique<BindCommandMetric>();
   execute_command_metric_ = std::make_unique<ExecuteCommandMetric>();
   query_trace_metric_ = std::make_unique<QueryTraceMetric>();
+  network_metric_ = std::make_unique<NetworkMetric>();
 }
 
 std::array<std::unique_ptr<AbstractRawData>, NUM_COMPONENTS> MetricsStore::GetDataToAggregate() {
@@ -83,6 +84,13 @@ std::array<std::unique_ptr<AbstractRawData>, NUM_COMPONENTS> MetricsStore::GetDa
               query_trace_metric_ != nullptr,
               "QueryTraceMetric cannot be a nullptr. Check the MetricsStore constructor that it was allocated.");
           result[component] = query_trace_metric_->Swap();
+          break;
+        }
+        case MetricsComponent::NETWORK: {
+          NOISEPAGE_ASSERT(
+              network_metric_ != nullptr,
+              "NetworkMetric cannot be a nullptr. Check the MetricsStore constructor that it was allocated.");
+          result[component] = network_metric_->Swap();
           break;
         }
       }
