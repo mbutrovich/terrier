@@ -24,9 +24,11 @@ class LoggingMetricRawData : public AbstractRawData {
     auto other_db_metric = dynamic_cast<LoggingMetricRawData *>(other);
     if (!other_db_metric->serializer_data_.empty()) {
       serializer_data_.splice(serializer_data_.cend(), other_db_metric->serializer_data_);
+      serializer_data_.resize((1 << 15) / sizeof(SerializerData));
     }
     if (!other_db_metric->consumer_data_.empty()) {
       consumer_data_.splice(consumer_data_.cend(), other_db_metric->consumer_data_);
+      consumer_data_.resize((1 << 15) / sizeof(ConsumerData));
     }
   }
 

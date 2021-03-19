@@ -33,6 +33,7 @@ class PipelineMetricRawData : public AbstractRawData {
     auto other_db_metric = dynamic_cast<PipelineMetricRawData *>(other);
     if (!other_db_metric->pipeline_data_.empty()) {
       pipeline_data_.splice(pipeline_data_.cend(), other_db_metric->pipeline_data_);
+      pipeline_data_.resize((1 << 15) / sizeof(PipelineData));
     }
   }
 

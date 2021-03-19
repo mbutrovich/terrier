@@ -25,6 +25,7 @@ class NetworkMetricRawData : public AbstractRawData {
     auto other_db_metric = dynamic_cast<NetworkMetricRawData *>(other);
     if (!other_db_metric->network_data_.empty()) {
       network_data_.splice(network_data_.cend(), other_db_metric->network_data_);
+      network_data_.resize((1 << 15) / sizeof(NetworkData));
     }
   }
 
