@@ -53,7 +53,7 @@ class PilotUtil {
    * forecasted qids due to the auto-incremental nature of the qids in pipeline metrics)
    * @returns const pointer to the collected pipeline data
    */
-  static const std::list<metrics::PipelineMetricRawData::PipelineData> &CollectPipelineFeatures(
+  static const std::deque<metrics::PipelineMetricRawData::PipelineData> &CollectPipelineFeatures(
       common::ManagedPointer<Pilot> pilot, common::ManagedPointer<WorkloadForecast> forecast,
       uint64_t start_segment_index, uint64_t end_segment_index, std::vector<execution::query_id_t> *pipeline_qids);
 
@@ -70,7 +70,7 @@ class PilotUtil {
   static void InferenceWithFeatures(const std::string &model_save_path,
                                     common::ManagedPointer<modelserver::ModelServerManager> model_server_manager,
                                     const std::vector<execution::query_id_t> &pipeline_qids,
-                                    const std::list<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
+                                    const std::deque<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
                                     std::map<std::pair<execution::query_id_t, execution::pipeline_id_t>,
                                              std::vector<std::vector<std::vector<double>>>> *pipeline_to_prediction);
 
@@ -141,7 +141,7 @@ class PilotUtil {
       std::list<std::tuple<execution::query_id_t, execution::pipeline_id_t,
                            std::vector<std::pair<ExecutionOperatingUnitType, uint64_t>>>> *pipeline_to_ou_position,
       const std::vector<execution::query_id_t> &pipeline_qids,
-      const std::list<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
+      const std::deque<metrics::PipelineMetricRawData::PipelineData> &pipeline_data,
       std::unordered_map<ExecutionOperatingUnitType, std::vector<std::vector<double>>> *ou_to_features);
 };
 

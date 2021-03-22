@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>  //NOLINT
+#include <deque>
 #include <fstream>
 #include <list>
 #include <utility>
@@ -24,9 +25,12 @@ class NetworkMetricRawData : public AbstractRawData {
   void Aggregate(AbstractRawData *const other) override {
     auto other_db_metric = dynamic_cast<NetworkMetricRawData *>(other);
     if (!other_db_metric->network_data_.empty()) {
-      network_data_.splice(network_data_.cend(), other_db_metric->network_data_);
       constexpr auto size = (1 << 15) / sizeof(NetworkData);
-      while (network_data_.size() > size) network_data_.pop_back();
+      while (!other_db_metric->network_data_.empty() && network_data_.size() < size) {
+        network_data_.emplace_back(other_db_metric->network_data_.front());
+        other_db_metric->network_data_.pop_front();
+      }
+      other_db_metric->network_data_.clear();
     }
   }
 
@@ -86,7 +90,7 @@ class NetworkMetricRawData : public AbstractRawData {
     const common::ResourceTracker::Metrics resource_metrics_;
   };
 
-  std::list<NetworkData> network_data_;
+  std::deque<NetworkData> network_data_;
 };
 
 /**

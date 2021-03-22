@@ -4,6 +4,7 @@
 #include <chrono>  //NOLINT
 #include <fstream>
 #include <list>
+#include <deque>
 #include <utility>
 #include <vector>
 
@@ -23,14 +24,20 @@ class LoggingMetricRawData : public AbstractRawData {
   void Aggregate(AbstractRawData *const other) override {
     auto other_db_metric = dynamic_cast<LoggingMetricRawData *>(other);
     if (!other_db_metric->serializer_data_.empty()) {
-      serializer_data_.splice(serializer_data_.cend(), other_db_metric->serializer_data_);
       constexpr auto size = (1 << 15) / sizeof(SerializerData);
-      while (serializer_data_.size() > size) serializer_data_.pop_back();
+      while (!other_db_metric->serializer_data_.empty() && serializer_data_.size() < size) {
+        serializer_data_.emplace_back(other_db_metric->serializer_data_.front());
+        other_db_metric->serializer_data_.pop_front();
+      }
+      other_db_metric->serializer_data_.clear();
     }
     if (!other_db_metric->consumer_data_.empty()) {
-      consumer_data_.splice(consumer_data_.cend(), other_db_metric->consumer_data_);
       constexpr auto size = (1 << 15) / sizeof(ConsumerData);
-      while (consumer_data_.size() > size) consumer_data_.pop_back();
+      while (!other_db_metric->consumer_data_.empty() && consumer_data_.size() < size) {
+        consumer_data_.emplace_back(other_db_metric->consumer_data_.front());
+        other_db_metric->consumer_data_.pop_front();
+      }
+      other_db_metric->consumer_data_.clear();
     }
   }
 
@@ -118,8 +125,8 @@ class LoggingMetricRawData : public AbstractRawData {
     const common::ResourceTracker::Metrics resource_metrics_;
   };
 
-  std::list<SerializerData> serializer_data_;
-  std::list<ConsumerData> consumer_data_;
+  std::deque<SerializerData> serializer_data_;
+  std::deque<ConsumerData> consumer_data_;
 };
 
 /**
