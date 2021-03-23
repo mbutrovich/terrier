@@ -174,5 +174,6 @@ class ConnectionHandle {
   struct event *workpool_event_ = nullptr;
 
   ConnectionContext context_;
+  bool flush_read_features_ = false;
 };
 }  // namespace noisepage::network

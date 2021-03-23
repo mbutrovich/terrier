@@ -904,10 +904,12 @@ class DBMain {
     bool use_metrics_thread_ = false;
     bool query_trace_metrics_ = false;
     bool pipeline_metrics_ = false;
+    bool network_metrics_ = false;
     uint8_t pipeline_metrics_sample_rate_ = 10;
     bool transaction_metrics_ = false;
     bool logging_metrics_ = false;
     uint8_t logging_metrics_sample_rate_ = 100;
+    uint8_t network_metrics_sample_rate_ = 100;
     bool gc_metrics_ = false;
     bool bind_command_metrics_ = false;
     bool execute_command_metrics_ = false;
@@ -1000,8 +1002,10 @@ class DBMain {
       pipeline_metrics_ = settings_manager->GetBool(settings::Param::pipeline_metrics_enable);
       pipeline_metrics_sample_rate_ = settings_manager->GetInt(settings::Param::pipeline_metrics_sample_rate);
       logging_metrics_sample_rate_ = settings_manager->GetInt(settings::Param::logging_metrics_sample_rate);
+      network_metrics_sample_rate_ = settings_manager->GetInt(settings::Param::network_metrics_sample_rate);
       transaction_metrics_ = settings_manager->GetBool(settings::Param::transaction_metrics_enable);
       logging_metrics_ = settings_manager->GetBool(settings::Param::logging_metrics_enable);
+      network_metrics_ = settings_manager->GetBool(settings::Param::network_metrics_enable);
       gc_metrics_ = settings_manager->GetBool(settings::Param::gc_metrics_enable);
       bind_command_metrics_ = settings_manager->GetBool(settings::Param::bind_command_metrics_enable);
       execute_command_metrics_ = settings_manager->GetBool(settings::Param::execute_command_metrics_enable);
@@ -1026,11 +1030,13 @@ class DBMain {
       metrics_manager->SetMetricSampleRate(metrics::MetricsComponent::EXECUTION_PIPELINE,
                                            pipeline_metrics_sample_rate_);
       metrics_manager->SetMetricSampleRate(metrics::MetricsComponent::LOGGING, logging_metrics_sample_rate_);
+      metrics_manager->SetMetricSampleRate(metrics::MetricsComponent::NETWORK, network_metrics_sample_rate_);
 
       if (query_trace_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::QUERY_TRACE);
       if (pipeline_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::EXECUTION_PIPELINE);
       if (transaction_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::TRANSACTION);
       if (logging_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::LOGGING);
+      if (network_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::NETWORK);
       if (gc_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::GARBAGECOLLECTION);
       if (bind_command_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::BIND_COMMAND);
       if (execute_command_metrics_) metrics_manager->EnableMetric(metrics::MetricsComponent::EXECUTE_COMMAND);

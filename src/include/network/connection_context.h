@@ -166,6 +166,9 @@ class ConnectionContext {
    */
   common::ManagedPointer<catalog::CatalogCache> GetCatalogCache() { return common::ManagedPointer(&catalog_cache_); }
 
+  network_features read_features_ = {.operating_unit_ = 1};
+  network_features write_features_ = {.operating_unit_ = 2};
+
  private:
   /**
    * This is a unique identifier (among currently open connections, not over the lifetime of the system) for this

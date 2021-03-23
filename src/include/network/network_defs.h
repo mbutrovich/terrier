@@ -12,6 +12,17 @@ namespace noisepage::network {
 class PostgresPacketWriter;
 class ReadBuffer;
 
+class network_features {
+ public:
+  uint8_t operating_unit_ = 0;
+  uint64_t num_simple_query_ = 0;
+  uint64_t num_parse_ = 0;
+  uint64_t num_bind_ = 0;
+  uint64_t num_describe_ = 0;
+  uint64_t num_execute_ = 0;
+  uint64_t num_sync_ = 0;
+};
+
 // This is to be stashed in a ConnectionContext as a unique identifier. This is really just the socket, but we don't
 // want anyone using it to directly access the socket downstream
 STRONG_TYPEDEF_HEADER(connection_id_t, uint16_t);

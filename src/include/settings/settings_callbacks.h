@@ -159,6 +159,16 @@ class Callbacks {
                                         common::ManagedPointer<common::ActionContext> action_context);
 
   /**
+   * Update the sampling interval for ExecutionEngine pipelines
+   * @param old_value old settings value
+   * @param new_value new settings value
+   * @param db_main pointer to db_main
+   * @param action_context pointer to the action context for this settings change
+   */
+  static void MetricsNetworkSampleRate(void *old_value, void *new_value, DBMain *db_main,
+                                       common::ManagedPointer<common::ActionContext> action_context);
+
+  /**
    * Enable or disable metrics collection for bind command
    * @param old_value old settings value
    * @param new_value new settings value
@@ -187,6 +197,16 @@ class Callbacks {
    */
   static void MetricsQueryTrace(void *old_value, void *new_value, DBMain *db_main,
                                 common::ManagedPointer<common::ActionContext> action_context);
+
+  /**
+   * Enable or disable metrics collection for network component
+   * @param old_value old settings value
+   * @param new_value new settings value
+   * @param db_main pointer to db_main
+   * @param action_context pointer to the action context for this settings change
+   */
+  static void MetricsNetwork(void *old_value, void *new_value, DBMain *db_main,
+                             common::ManagedPointer<common::ActionContext> action_context);
 
   /**
    * Enable or disable planning in Pilot thread
