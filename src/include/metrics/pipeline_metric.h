@@ -4,6 +4,7 @@
 #include <chrono>  //NOLINT
 #include <fstream>
 #include <list>
+#include <deque>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -32,7 +33,12 @@ class PipelineMetricRawData : public AbstractRawData {
   void Aggregate(AbstractRawData *const other) override {
     auto other_db_metric = dynamic_cast<PipelineMetricRawData *>(other);
     if (!other_db_metric->pipeline_data_.empty()) {
-      pipeline_data_.splice(pipeline_data_.cend(), other_db_metric->pipeline_data_);
+      constexpr auto size = (1 << 15) / sizeof(PipelineData);
+      while (!other_db_metric->pipeline_data_.empty() && pipeline_data_.size() < size) {
+        pipeline_data_.emplace_back(other_db_metric->pipeline_data_.front());
+        other_db_metric->pipeline_data_.pop_front();
+      }
+      other_db_metric->pipeline_data_.clear();
     }
   }
 
@@ -112,7 +118,7 @@ class PipelineMetricRawData : public AbstractRawData {
           resource_metrics_(resource_metrics) {}
 
     template <class T>
-    std::string ConcatVectorToString(const std::vector<T> &vec) {
+    std::string ConcatVectorToString(const std::vector<T> &vec) const {
       std::stringstream sstream;
       for (auto itr = vec.begin(); itr != vec.end(); itr++) {
         sstream << (*itr);
@@ -123,7 +129,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return sstream.str();
     }
 
-    std::string GetFeatureVectorString() {
+    std::string GetFeatureVectorString() const {
       std::vector<std::string> types;
       for (auto &feature : features_) {
         types.emplace_back(selfdriving::OperatingUnitUtil::ExecutionOperatingUnitTypeToString(
@@ -132,7 +138,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<std::string>(types);
     }
 
-    std::string GetEstRowsVectorString() {
+    std::string GetEstRowsVectorString() const {
       std::vector<size_t> est_rows;
       for (auto &feature : features_) {
         est_rows.emplace_back(feature.GetNumRows());
@@ -140,7 +146,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<size_t>(est_rows);
     }
 
-    std::string GetCardinalityVectorString() {
+    std::string GetCardinalityVectorString() const {
       std::vector<size_t> cars;
       for (auto &feature : features_) {
         cars.emplace_back(feature.GetCardinality());
@@ -148,7 +154,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<size_t>(cars);
     }
 
-    std::string GetKeySizeVectorString() {
+    std::string GetKeySizeVectorString() const {
       std::vector<size_t> sizes;
       for (auto &feature : features_) {
         sizes.emplace_back(feature.GetKeySize());
@@ -156,7 +162,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<size_t>(sizes);
     }
 
-    std::string GetNumKeysVectorString() {
+    std::string GetNumKeysVectorString() const {
       std::vector<size_t> num_keys;
       for (auto &feature : features_) {
         num_keys.emplace_back(feature.GetNumKeys());
@@ -164,7 +170,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<size_t>(num_keys);
     }
 
-    std::string GetMemFactorsVectorString() {
+    std::string GetMemFactorsVectorString() const {
       std::vector<double> factors;
       for (auto &feature : features_) {
         factors.emplace_back(feature.GetMemFactor());
@@ -172,7 +178,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<double>(factors);
     }
 
-    std::string GetNumLoopsVectorString() {
+    std::string GetNumLoopsVectorString() const {
       std::vector<size_t> num_loops;
       for (auto &feature : features_) {
         num_loops.emplace_back(feature.GetNumLoops());
@@ -180,7 +186,7 @@ class PipelineMetricRawData : public AbstractRawData {
       return ConcatVectorToString<size_t>(num_loops);
     }
 
-    std::string GetNumConcurrentVectorString() {
+    std::string GetNumConcurrentVectorString() const {
       std::vector<size_t> num_concurrent;
       for (auto &feature : features_) {
         num_concurrent.emplace_back(feature.GetNumConcurrent());
@@ -195,7 +201,7 @@ class PipelineMetricRawData : public AbstractRawData {
     const common::ResourceTracker::Metrics resource_metrics_;
   };
 
-  std::list<PipelineData> pipeline_data_;
+  std::deque<PipelineData> pipeline_data_;
 };
 
 /**
