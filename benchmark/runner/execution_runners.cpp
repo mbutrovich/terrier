@@ -2342,8 +2342,8 @@ void RunExecutionRunners() {
 
 int main(int argc, char **argv) {
   // Initialize execution-runner arguments
-  std::string pause;
-  std::cin >> pause;
+  //  std::string pause;
+  //  std::cin >> pause;
 
   // Initialize mini-runner arguments
   noisepage::runner::settings.InitializeFromArguments(argc, argv);

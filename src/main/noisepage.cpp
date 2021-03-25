@@ -61,8 +61,8 @@ int main(int argc, char *argv[]) {
     return register_result;
   }
 
-  std::string pause;
-  std::cin >> pause;
+  //  std::string pause;
+  //  std::cin >> pause;
 
   // Parse Setting Values
   ::gflags::SetUsageMessage("Usage Info: \n");
