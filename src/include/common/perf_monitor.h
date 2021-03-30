@@ -104,140 +104,29 @@ class PerfMonitor {
   /**
    * Create a perf monitor and open all of the necessary file descriptors.
    */
-  PerfMonitor() {
-#if __APPLE__
-    // Apple doesn't support perf events and currently doesn't expose an equivalent kernel API
-    valid_ = false;
-#else
-    // Initialize perf configuration
-    perf_event_attr pe;
-    std::memset(&pe, 0, sizeof(perf_event_attr));
-    pe.type = PERF_TYPE_HARDWARE;
-    pe.size = sizeof(perf_event_attr);
-    pe.disabled = 1;
-    pe.exclude_kernel = 1;
-    pe.exclude_hv = 1;
-    if constexpr (inherit) {  // NOLINT
-      // Count your children's counters
-      pe.inherit = 1;
-      pe.inherit_stat = 1;
-    } else {  // NOLINT
-      // Don't read children thread counters, can optimize to read this thread's counters in group fashion
-      pe.read_format = PERF_FORMAT_GROUP;
-    }
+  PerfMonitor() { NOISEPAGE_ASSERT(false, "why is this here"); }
 
-    // Open file descriptors for each perf_event that we want.
-    for (uint8_t i = 0; i < NUM_HW_EVENTS; i++) {
-      pe.config = HW_EVENTS[i];
-      if constexpr (inherit) {  // NOLINT
-        // Each counter is its own group (-1 group fd)
-        event_files_[i] = syscall(__NR_perf_event_open, &pe, 0, -1, -1, 0);
-      } else {  // NOLINT
-        //  We reuse the first entry of the array as the group fd.
-        event_files_[i] = syscall(__NR_perf_event_open, &pe, 0, -1, event_files_[0], 0);
-      }
-      valid_ = valid_ && event_files_[i] > 2;  // 0, 1, 2 are reserved for stdin, stdout, stderr respectively
-    }
-#endif
-  }
-
-  ~PerfMonitor() {
-    if (valid_) {
-      // Iterate through all of the events' file descriptors and close them
-      for (const auto i : event_files_) {
-        const auto result UNUSED_ATTRIBUTE = close(i);
-        NOISEPAGE_ASSERT(result == 0, "Failed to close perf_event.");
-      }
-    }
-  }
+  ~PerfMonitor() { NOISEPAGE_ASSERT(false, "why is this here"); }
 
   DISALLOW_COPY_AND_MOVE(PerfMonitor)
 
   /**
    * Start monitoring perf counters
    */
-  void Start() {
-#if __APPLE__
-    // do nothing
-#else
-    if (valid_) {
-      if constexpr (inherit) {  // NOLINT
-        // Iterate through all of the events' file descriptors resetting and starting them
-        for (const auto i : event_files_) {
-          auto result UNUSED_ATTRIBUTE = ioctl(i, PERF_EVENT_IOC_RESET);
-          NOISEPAGE_ASSERT(result >= 0, "Failed to reset events.");
-          result = ioctl(i, PERF_EVENT_IOC_ENABLE);
-          NOISEPAGE_ASSERT(result >= 0, "Failed to enable events.");
-        }
-      } else {  // NOLINT
-        // Reset all of the counters out with a single syscall.
-        auto result UNUSED_ATTRIBUTE = ioctl(event_files_[0], PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
-        NOISEPAGE_ASSERT(result >= 0, "Failed to reset events.");
-        // Start all of the counters out with a single syscall.
-        result = ioctl(event_files_[0], PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
-        NOISEPAGE_ASSERT(result >= 0, "Failed to enable events.");
-      }
-      running_ = true;
-    }
-#endif
-  }
+  void Start() { NOISEPAGE_ASSERT(false, "why is this here"); }
 
   /**
    * Stop monitoring perf counters
    */
-  void Stop() {
-#if __APPLE__
-    // do nothing
-#else
-    if (valid_) {
-      NOISEPAGE_ASSERT(running_, "StopEvents() called without StartEvents() first.");
-      if constexpr (inherit) {  // NOLINT
-        // Iterate through all of the events' file descriptors stopping them
-        for (const auto i : event_files_) {
-          auto result UNUSED_ATTRIBUTE = ioctl(i, PERF_EVENT_IOC_DISABLE);
-          NOISEPAGE_ASSERT(result >= 0, "Failed to disable events.");
-        }
-      } else {  // NOLINT
-        // Stop all of the counters out with a single syscall.
-        auto result UNUSED_ATTRIBUTE = ioctl(event_files_[0], PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
-        NOISEPAGE_ASSERT(result >= 0, "Failed to disable events.");
-      }
-      running_ = false;
-    }
-#endif
-  }
+  void Stop() { NOISEPAGE_ASSERT(false, "why is this here"); }
 
   /**
    * Read out counters for the profiled period
    * @return struct representing the counters
    */
   PerfCounters Counters() const {
+    NOISEPAGE_ASSERT(false, "why is this here");
     PerfCounters counters{};  // zero initialization
-    if (valid_) {
-      if constexpr (inherit) {  // NOLINT
-        // Iterate through all of the events' file descriptors reading them
-
-        auto bytes_read UNUSED_ATTRIBUTE = read(event_files_[0], &counters.cpu_cycles_, sizeof(uint64_t));
-        NOISEPAGE_ASSERT(bytes_read == sizeof(uint64_t), "Failed to read the counter.");
-
-        bytes_read = read(event_files_[1], &counters.instructions_, sizeof(uint64_t));
-        NOISEPAGE_ASSERT(bytes_read == sizeof(uint64_t), "Failed to read the counter.");
-
-        bytes_read = read(event_files_[2], &counters.cache_references_, sizeof(uint64_t));
-        NOISEPAGE_ASSERT(bytes_read == sizeof(uint64_t), "Failed to read the counter.");
-
-        bytes_read = read(event_files_[3], &counters.cache_misses_, sizeof(uint64_t));
-        NOISEPAGE_ASSERT(bytes_read == sizeof(uint64_t), "Failed to read the counter.");
-
-        bytes_read = read(event_files_[4], &counters.ref_cpu_cycles_, sizeof(uint64_t));
-        NOISEPAGE_ASSERT(bytes_read == sizeof(uint64_t), "Failed to read the counter.");
-      } else {  // NOLINT
-        // Read all of the counters out with a single syscall.
-        auto bytes_read UNUSED_ATTRIBUTE = read(event_files_[0], &counters, sizeof(PerfCounters));
-        NOISEPAGE_ASSERT(bytes_read == sizeof(PerfCounters), "Failed to read the counters.");
-        NOISEPAGE_ASSERT(counters.num_counters_ == NUM_HW_EVENTS, "Failed to read the counters.");
-      }
-    }
     return counters;
   }
 

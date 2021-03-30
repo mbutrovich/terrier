@@ -43,11 +43,7 @@ class ResourceTracker {
      * @param outfile opened ofstream to write to
      */
     void ToCSV(std::ofstream &outfile) const {
-      auto ref_cycles = execution::CpuInfo::Instance()->GetRefCyclesUs();
-      outfile << start_ << ", " << cpu_id_ << ", " << counters_.cpu_cycles_ << ", " << counters_.instructions_ << ", "
-              << counters_.cache_references_ << ", " << counters_.cache_misses_ << ", "
-              << ((ref_cycles == 0) ? 0 : counters_.ref_cpu_cycles_ / ref_cycles) << ", " << rusage_.ru_inblock << ", "
-              << rusage_.ru_oublock << ", " << memory_b_ << ", " << elapsed_us_;
+      NOISEPAGE_ASSERT(false, "why is this here");
     }
 
     /** Column headers to emit when writing to CSV */
@@ -59,25 +55,13 @@ class ResourceTracker {
   /**
    * Start the timer and resource monitors
    */
-  void Start() {
-    running_ = true;
-    perf_monitor_.Start();
-    rusage_monitor_.Start();
-    metrics_.memory_b_ = 0;
-    metrics_.start_ = metrics::MetricsUtil::Now();
+  void Start() {NOISEPAGE_ASSERT(false, "why is this here");
   }
 
   /**
    * Stop the timer and resource monitors
    */
-  void Stop() {
-    metrics_.elapsed_us_ = metrics::MetricsUtil::Now() - metrics_.start_;
-    perf_monitor_.Stop();
-    rusage_monitor_.Stop();
-    metrics_.counters_ = perf_monitor_.Counters();
-    metrics_.rusage_ = rusage_monitor_.Usage();
-    metrics_.cpu_id_ = execution::CpuInfo::GetCpuId();
-    running_ = false;
+  void Stop() {NOISEPAGE_ASSERT(false, "why is this here");
   }
 
   /**
@@ -101,9 +85,6 @@ class ResourceTracker {
    * @param memory_b memory in bytes
    */
   void SetMemory(const size_t memory_b) { metrics_.memory_b_ = memory_b; }
-
-  PerfMonitor<COUNT_CHILDREN_THREADS> perf_monitor_;
-  RusageMonitor rusage_monitor_{false};
 
   // The struct to hold all the tracked resource metrics
   Metrics metrics_;
