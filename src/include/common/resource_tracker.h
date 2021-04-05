@@ -37,6 +37,8 @@ class ResourceTracker {
     int cpu_id_;
     /** The memory consumption (in bytes) */
     uint64_t memory_b_;
+    uint64_t network_read_ = 0;
+    uint64_t network_write_ = 0;
 
     /**
      * Writes the metrics out to ofstreams
@@ -46,14 +48,15 @@ class ResourceTracker {
       auto ref_cycles = execution::CpuInfo::Instance()->GetRefCyclesUs();
       outfile << start_ << ", " << cpu_id_ << ", " << counters_.cpu_cycles_ << ", " << counters_.instructions_ << ", "
               << counters_.cache_references_ << ", " << counters_.cache_misses_ << ", "
-              << ((ref_cycles == 0) ? 0 : counters_.ref_cpu_cycles_ / ref_cycles) << ", " << rusage_.ru_inblock << ", "
-              << rusage_.ru_oublock << ", " << memory_b_ << ", " << elapsed_us_;
+              << ((ref_cycles == 0) ? 0 : counters_.ref_cpu_cycles_ / ref_cycles) << ", " << network_read_ << ", "
+              << network_write_ << ", " << rusage_.ru_inblock << ", " << rusage_.ru_oublock << ", " << memory_b_ << ", "
+              << elapsed_us_;
     }
 
     /** Column headers to emit when writing to CSV */
     static constexpr std::string_view COLUMNS = {
         "start_time, cpu_id, cpu_cycles, instructions, cache_ref, cache_miss, ref_cpu_cycles, "
-        "block_read, block_write, memory_b, elapsed_us"};
+        "network_read, network_write, block_read, block_write, memory_b, elapsed_us"};
   };
 
   /**
@@ -64,6 +67,7 @@ class ResourceTracker {
     perf_monitor_.Start();
     rusage_monitor_.Start();
     metrics_.memory_b_ = 0;
+    metrics_.network_read_ = metrics_.network_write_ = 0;
     metrics_.start_ = metrics::MetricsUtil::Now();
   }
 
@@ -90,6 +94,10 @@ class ResourceTracker {
    * @return whether the tracker is running
    */
   bool IsRunning() const { return running_; }
+
+  void SetNetworkRead(const uint64_t read) { metrics_.network_read_ = read; }
+
+  void SetNetworkWrite(const uint64_t write) { metrics_.network_write_ = write; }
 
  private:
   friend class execution::exec::ExecutionContext;
