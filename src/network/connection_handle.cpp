@@ -185,6 +185,7 @@ Transition ConnectionHandle::TryRead() {
     common::thread_context.resource_tracker_.Start();
     const auto read_transition = io_wrapper_->FillReadBuffer();
     common::thread_context.resource_tracker_.Stop();
+    common::thread_context.resource_tracker_.SetNetworkRead(io_wrapper_->GetReadBuffer()->Size());
     flush_read_features_ = true;
     return read_transition;
   }
@@ -203,9 +204,11 @@ Transition ConnectionHandle::TryWrite() {
         flush_read_features_ = false;
         context_.read_features_ = {.operating_unit_ = 1};
       }
+      const auto write_bytes = io_wrapper_->GetWriteQueue()->Size();
       common::thread_context.resource_tracker_.Start();
       const auto write_transition = io_wrapper_->FlushAllWrites();
       common::thread_context.resource_tracker_.Stop();
+      common::thread_context.resource_tracker_.SetNetworkWrite(write_bytes);
       common::thread_context.metrics_store_->RecordNetworkData(context_.write_features_,
                                                                common::thread_context.resource_tracker_.GetMetrics());
       context_.write_features_ = {.operating_unit_ = 2};
