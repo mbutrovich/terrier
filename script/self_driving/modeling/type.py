@@ -15,10 +15,12 @@ class Target(enum.IntEnum):
     CACHE_REF = 4,
     CACHE_MISS = 5,
     REF_CPU_CYCLES = 6,
-    BLOCK_READ = 7,
-    BLOCK_WRITE = 8,
-    MEMORY_B = 9,
-    ELAPSED_US = 10
+    NETWORK_READ = 7,
+    NETWORK_WRITE = 8,
+    BLOCK_READ = 9,
+    BLOCK_WRITE = 10,
+    MEMORY_B = 11,
+    ELAPSED_US = 12
 
 
 class OpUnit(enum.IntEnum):

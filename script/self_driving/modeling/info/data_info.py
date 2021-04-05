@@ -34,7 +34,8 @@ class DataInfo:
 
         # prediction targets in the mini models
         self.OU_MODEL_TARGET_LIST = [Target.CPU_CYCLES, Target.INSTRUCTIONS, Target.CACHE_REF,
-                                     Target.CACHE_MISS, Target.REF_CPU_CYCLES, Target.BLOCK_READ,
+                                     Target.CACHE_MISS, Target.REF_CPU_CYCLES, Target.NETWORK_READ,
+                                     Target.NETWORK_WRITE, Target.BLOCK_READ,
                                      Target.BLOCK_WRITE, Target.MEMORY_B, Target.ELAPSED_US]
         # the number of prediction targets in the mini models
         self.OU_MODEL_TARGET_NUM = len(self.OU_MODEL_TARGET_LIST)
