@@ -52,7 +52,7 @@ class NetworkMetricRawData : public AbstractRawData {
     auto &outfile = (*outfiles)[0];
 
     for (const auto &data : network_data_) {
-      outfile << static_cast<uint8_t>(data.features_.operating_unit_) << ", " << data.features_.num_simple_query_
+      outfile << static_cast<uint32_t>(data.features_.operating_unit_) << ", " << data.features_.num_simple_query_
               << ", " << data.features_.num_parse_ << ", " << data.features_.num_bind_ << ", "
               << data.features_.num_describe_ << ", " << data.features_.num_execute_ << ", " << data.features_.num_sync_
               << ", ";
