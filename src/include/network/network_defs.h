@@ -15,12 +15,9 @@ class ReadBuffer;
 class network_features {
  public:
   uint8_t operating_unit_ = 0;
-  uint64_t num_simple_query_ = 0;
-  uint64_t num_parse_ = 0;
-  uint64_t num_bind_ = 0;
-  uint64_t num_describe_ = 0;
-  uint64_t num_execute_ = 0;
-  uint64_t num_sync_ = 0;
+  uint64_t num_queries_ = 0;  // TODO(Matt): right now we're only going to count messages that contain a single query
+                              // since it's not clear how to model messages that contain multiple queries
+  uint64_t bytes_ = 0;
 };
 
 // This is to be stashed in a ConnectionContext as a unique identifier. This is really just the socket, but we don't
