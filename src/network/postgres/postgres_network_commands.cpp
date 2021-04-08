@@ -76,8 +76,8 @@ Transition SimpleQueryCommand::Exec(const common::ManagedPointer<ProtocolInterpr
                                     const common::ManagedPointer<PostgresPacketWriter> out,
                                     const common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                                     const common::ManagedPointer<ConnectionContext> connection) {
-  connection->read_features_.num_simple_query_++;
-  connection->write_features_.num_simple_query_++;
+  connection->read_features_.num_queries_++;
+  connection->write_features_.num_queries_++;
   const auto postgres_interpreter = interpreter.CastManagedPointerTo<network::PostgresProtocolInterpreter>();
   NOISEPAGE_ASSERT(!postgres_interpreter->WaitingForSync(),
                    "We shouldn't be trying to execute commands while waiting for Sync message. This should have been "
@@ -180,7 +180,7 @@ Transition SimpleQueryCommand::Exec(const common::ManagedPointer<ProtocolInterpr
     const auto bind_result = t_cop->BindQuery(connection, common::ManagedPointer(statement), nullptr);
     if (bind_result.type_ == trafficcop::ResultType::COMPLETE) {
       // Binding succeeded, optimize to generate a physical plan and then execute
-      auto optimize_result = t_cop->OptimizeBoundQuery(connection, statement->ParseResult());
+      auto optimize_result = t_cop->OptimizeBoundQuery(connection, statement->ParseResult(), nullptr);
 
       statement->SetOptimizeResult(std::move(optimize_result));
 
@@ -224,8 +224,6 @@ Transition ParseCommand::Exec(const common::ManagedPointer<ProtocolInterpreter> 
                               const common::ManagedPointer<PostgresPacketWriter> out,
                               const common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                               const common::ManagedPointer<ConnectionContext> connection) {
-  connection->read_features_.num_parse_++;
-  connection->write_features_.num_parse_++;
   const auto postgres_interpreter = interpreter.CastManagedPointerTo<network::PostgresProtocolInterpreter>();
   NOISEPAGE_ASSERT(!postgres_interpreter->WaitingForSync(),
                    "We shouldn't be trying to execute commands while waiting for Sync message. This should have been "
@@ -298,8 +296,6 @@ Transition BindCommand::Exec(const common::ManagedPointer<ProtocolInterpreter> i
                              const common::ManagedPointer<PostgresPacketWriter> out,
                              const common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                              const common::ManagedPointer<ConnectionContext> connection) {
-  connection->read_features_.num_bind_++;
-  connection->write_features_.num_bind_++;
   const bool bind_command_metrics_enabled =
       common::thread_context.metrics_store_ != nullptr &&
       common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::BIND_COMMAND);
@@ -403,7 +399,8 @@ Transition BindCommand::Exec(const common::ManagedPointer<ProtocolInterpreter> i
     // Binding succeeded, optimize to generate a physical plan
     if (statement->OptimizeResult() == nullptr || !t_cop->UseQueryCache()) {
       // it's not cached, optimize it
-      auto optimize_result = t_cop->OptimizeBoundQuery(connection, statement->ParseResult());
+      auto optimize_result =
+          t_cop->OptimizeBoundQuery(connection, statement->ParseResult(), common::ManagedPointer(&params));
 
       statement->SetOptimizeResult(std::move(optimize_result));
     }
@@ -447,8 +444,6 @@ Transition DescribeCommand::Exec(const common::ManagedPointer<ProtocolInterprete
                                  const common::ManagedPointer<PostgresPacketWriter> out,
                                  const common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                                  const common::ManagedPointer<ConnectionContext> connection) {
-  connection->read_features_.num_describe_++;
-  connection->write_features_.num_describe_++;
   const auto postgres_interpreter = interpreter.CastManagedPointerTo<network::PostgresProtocolInterpreter>();
   NOISEPAGE_ASSERT(!postgres_interpreter->WaitingForSync(),
                    "We shouldn't be trying to execute commands while waiting for Sync message. This should have been "
@@ -494,8 +489,8 @@ Transition ExecuteCommand::Exec(const common::ManagedPointer<ProtocolInterpreter
                                 const common::ManagedPointer<PostgresPacketWriter> out,
                                 const common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                                 const common::ManagedPointer<ConnectionContext> connection) {
-  connection->read_features_.num_execute_++;
-  connection->write_features_.num_execute_++;
+  connection->read_features_.num_queries_++;
+  connection->write_features_.num_queries_++;
   const bool execute_command_metrics_enabled =
       common::thread_context.metrics_store_ != nullptr &&
       common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::EXECUTE_COMMAND);
@@ -589,8 +584,6 @@ Transition SyncCommand::Exec(common::ManagedPointer<ProtocolInterpreter> interpr
                              common::ManagedPointer<PostgresPacketWriter> out,
                              common::ManagedPointer<trafficcop::TrafficCop> t_cop,
                              common::ManagedPointer<ConnectionContext> connection) {
-  connection->read_features_.num_sync_++;
-  connection->write_features_.num_sync_++;
   const auto postgres_interpreter = interpreter.CastManagedPointerTo<network::PostgresProtocolInterpreter>();
   if (!postgres_interpreter->ExplicitTransactionBlock() &&
       !(connection->TransactionState() == network::NetworkTransactionStateType::IDLE)) {
