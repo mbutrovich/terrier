@@ -117,7 +117,7 @@ class ConnectionContext {
 
   /**
    * @param txn new value
-   * @warning this should only be used by TrafficCop::BeginTransa\ction and TrafficCop::EndTransaction
+   * @warning this should only be used by TrafficCop::BeginTransaction and TrafficCop::EndTransaction
    * @warning it should match the txn used for this ConnectionContext's current CatalogAccessor
    */
   void SetTransaction(const common::ManagedPointer<transaction::TransactionContext> txn) { txn_ = txn; }
