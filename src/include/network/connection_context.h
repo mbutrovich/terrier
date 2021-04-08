@@ -18,8 +18,8 @@ enum class NetworkOperatingUnit : uint8_t { INVALID = 0, READ = 1, WRITE = 2 };
 class network_features {
  public:
   NetworkOperatingUnit operating_unit_ = NetworkOperatingUnit::INVALID;
-  uint64_t num_queries_ = 0;
   uint64_t bytes_ = 0;
+  uint64_t num_queries_ = 0;
 };
 
 /**
