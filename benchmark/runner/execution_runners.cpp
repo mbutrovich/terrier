@@ -740,6 +740,7 @@ void NetworkQueriesOutputRunners(pqxx::work *txn) {
             metrics_enabled = false;
           } else if (i == iters - 1 && !metrics_enabled) {
             DbMainSetParam<settings::Param::pipeline_metrics_enable, bool>(true);
+            DbMainSetParam<settings::Param::network_metrics_enable, bool>(true);
             metrics_enabled = true;
           }
 
@@ -809,6 +810,7 @@ void NetworkQueriesCreateIndexRunners(pqxx::work *txn) {
               metrics_enabled = false;
             } else if (i == iters - 1 && !metrics_enabled) {
               DbMainSetParam<settings::Param::pipeline_metrics_enable, bool>(true);
+              DbMainSetParam<settings::Param::network_metrics_enable, bool>(true);
               metrics_enabled = true;
             }
 
@@ -2020,6 +2022,8 @@ void InitializeRunnersState() {
   auto txn_manager = db_main->GetTransactionLayer()->GetTransactionManager();
   DbMainSetParam<settings::Param::pipeline_metrics_enable, bool>(true);
   DbMainSetParam<settings::Param::pipeline_metrics_sample_rate, int>(100);
+  DbMainSetParam<settings::Param::network_metrics_enable, bool>(true);
+  DbMainSetParam<settings::Param::network_metrics_sample_rate, int>(100);
 
   // Create the database
   auto txn = txn_manager->BeginTransaction();
