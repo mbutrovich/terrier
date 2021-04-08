@@ -80,6 +80,8 @@ class Buffer {
     offset_ = 0;
   }
 
+  size_t Size() const { return size_; }
+
  protected:
   /**
    * Number of bytes the buffer holds
@@ -472,6 +474,14 @@ class WriteQueue {
   template <typename T>
   void BufferWriteRawValue(T val, bool breakup = true) {
     BufferWriteRaw(&val, sizeof(T), breakup);
+  }
+
+  size_t Size() const {
+    auto size = 0;
+    for (const auto &buffer : buffers_) {
+      size += buffer->Size();
+    }
+    return size;
   }
 
  private:

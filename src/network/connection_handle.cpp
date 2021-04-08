@@ -186,7 +186,10 @@ Transition ConnectionHandle::TryRead() {
       FOLLY_SDT_IS_ENABLED(, network__features);
   if (do_a_metrics_thing) {
     if (flush_read_features_) {
-      FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+      if (context_.read_features_.num_queries_ == 1) {
+        // only flush metrics if we have a single query. Don't know how to model anything else right now.
+        FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+      }
       flush_read_features_ = false;
       context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
     }
@@ -194,6 +197,7 @@ Transition ConnectionHandle::TryRead() {
     FOLLY_SDT(, network__start, socket_fd);
     const auto read_transition = io_wrapper_->FillReadBuffer();
     FOLLY_SDT(, network__stop, socket_fd);
+    context_.read_features_.bytes_ = io_wrapper_->GetReadBuffer()->Size();
     flush_read_features_ = true;
     return read_transition;
   }
@@ -208,15 +212,22 @@ Transition ConnectionHandle::TryWrite() {
         FOLLY_SDT_IS_ENABLED(, network__features);
     if (do_a_metrics_thing) {
       if (flush_read_features_) {
-        FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+        if (context_.read_features_.num_queries_ == 1) {
+          // only flush metrics if we have a single query. Don't know how to model anything else right now.
+          FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+        }
         flush_read_features_ = false;
         context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
       }
+      context_.write_features_.bytes_ = io_wrapper_->GetWriteQueue()->Size();
       const auto socket_fd = io_wrapper_->GetSocketFd();
       FOLLY_SDT(, network__start, socket_fd);
       const auto write_transition = io_wrapper_->FlushAllWrites();
       FOLLY_SDT(, network__stop, socket_fd);
-      FlushNetworkFeatures(common::ManagedPointer(&context_.write_features_));
+      if (context_.write_features_.num_queries_ == 1) {
+        // only flush metrics if we have a single query. Don't know how to model anything else right now.
+        FlushNetworkFeatures(common::ManagedPointer(&context_.write_features_));
+      }
       context_.write_features_ = {.operating_unit_ = NetworkOperatingUnit::WRITE};
       return write_transition;
     }
