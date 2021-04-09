@@ -180,25 +180,35 @@ static void FlushNetworkFeatures(const common::ManagedPointer<network_features> 
 }
 
 Transition ConnectionHandle::TryRead() {
+  // TODO(Matt): there's an edge case here: what happens if it takes multiple TryRead's to build a packet? ie the query
+  // data spans multiple packets. The network state machine is tricky
+
+  // check first if we have data to flush
+  if (flush_read_features_) {
+    if (context_.read_features_.num_queries_ == 1) {
+      // only flush metrics if we have a single query. Don't know how to model anything else right now.
+      FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+    }
+    // reset read features
+    flush_read_features_ = false;
+    context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
+  }
+
+  // sample for a new data point
   const bool do_a_metrics_thing =
       common::thread_context.metrics_store_ != nullptr &&
       common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK) &&
       FOLLY_SDT_IS_ENABLED(, network__features);
   if (do_a_metrics_thing) {
-    if (flush_read_features_) {
-      if (context_.read_features_.num_queries_ == 1) {
-        // only flush metrics if we have a single query. Don't know how to model anything else right now.
-        FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
-      }
-      flush_read_features_ = false;
-      context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
-    }
+    // perform read while profiling
     const auto socket_fd = io_wrapper_->GetSocketFd();
     FOLLY_SDT(, network__start, socket_fd);
     const auto read_transition = io_wrapper_->FillReadBuffer();
     FOLLY_SDT(, network__stop, socket_fd);
     context_.read_features_.bytes_ = io_wrapper_->GetReadBuffer()->Size();
+    // flush at next opportunity
     flush_read_features_ = true;
+    // return result of profiled op
     return read_transition;
   }
   return io_wrapper_->FillReadBuffer();
@@ -206,19 +216,24 @@ Transition ConnectionHandle::TryRead() {
 
 Transition ConnectionHandle::TryWrite() {
   if (io_wrapper_->ShouldFlush()) {
+    // check first if we have data to flush
+    if (flush_read_features_) {
+      if (context_.read_features_.num_queries_ == 1) {
+        // only flush metrics if we have a single query. Don't know how to model anything else right now.
+        FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
+      }
+      // reset read features
+      flush_read_features_ = false;
+      context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
+    }
+
+    // sample for a new data point
     const bool do_a_metrics_thing =
         common::thread_context.metrics_store_ != nullptr &&
         common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK) &&
         FOLLY_SDT_IS_ENABLED(, network__features);
     if (do_a_metrics_thing) {
-      if (flush_read_features_) {
-        if (context_.read_features_.num_queries_ == 1) {
-          // only flush metrics if we have a single query. Don't know how to model anything else right now.
-          FlushNetworkFeatures(common::ManagedPointer(&context_.read_features_));
-        }
-        flush_read_features_ = false;
-        context_.read_features_ = {.operating_unit_ = NetworkOperatingUnit::READ};
-      }
+      // perform write while profiling
       context_.write_features_.bytes_ = io_wrapper_->GetWriteQueue()->Size();
       const auto socket_fd = io_wrapper_->GetSocketFd();
       FOLLY_SDT(, network__start, socket_fd);
@@ -229,6 +244,7 @@ Transition ConnectionHandle::TryWrite() {
         FlushNetworkFeatures(common::ManagedPointer(&context_.write_features_));
       }
       context_.write_features_ = {.operating_unit_ = NetworkOperatingUnit::WRITE};
+      // return result of profiled op
       return write_transition;
     }
     return io_wrapper_->FlushAllWrites();
