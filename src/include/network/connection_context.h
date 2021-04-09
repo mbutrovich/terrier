@@ -8,6 +8,7 @@
 #include "catalog/catalog_accessor.h"
 #include "catalog/catalog_cache.h"
 #include "catalog/catalog_defs.h"
+#include "common/resource_tracker.h"
 #include "network/network_defs.h"
 #include "transaction/transaction_context.h"
 
@@ -117,7 +118,7 @@ class ConnectionContext {
 
   /**
    * @param txn new value
-   * @warning this should only be used by TrafficCop::BeginTransa\ction and TrafficCop::EndTransaction
+   * @warning this should only be used by TrafficCop::BeginTransaction and TrafficCop::EndTransaction
    * @warning it should match the txn used for this ConnectionContext's current CatalogAccessor
    */
   void SetTransaction(const common::ManagedPointer<transaction::TransactionContext> txn) { txn_ = txn; }
@@ -168,6 +169,7 @@ class ConnectionContext {
 
   network_features read_features_ = {.operating_unit_ = 1};
   network_features write_features_ = {.operating_unit_ = 2};
+  common::ResourceTracker::Metrics read_metrics_;
 
  private:
   /**
