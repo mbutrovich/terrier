@@ -45,7 +45,6 @@ class ResourceTracker {
      * @param outfile opened ofstream to write to
      */
     void ToCSV(std::ofstream &outfile) const {
-      auto ref_cycles = execution::CpuInfo::Instance()->GetRefCyclesUs();
       outfile << start_ << ", " << cpu_id_ << ", " << counters_.cpu_cycles_ << ", " << counters_.instructions_ << ", "
               << counters_.cache_references_ << ", " << counters_.cache_misses_ << ", " << counters_.ref_cpu_cycles_
               << ", " << network_read_ << ", " << network_write_ << ", " << rusage_.ru_inblock << ", "
