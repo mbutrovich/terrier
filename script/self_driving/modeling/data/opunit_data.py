@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 import csv
-import numpy as np
-import pandas as pd
-import os
 import logging
-import tqdm
 import math
+import numpy as np
+import os
+import pandas as pd
+import tqdm
 
 from . import data_util
 from ..info import data_info
-from ..util import io_util
 from ..type import OpUnit, Target, ExecutionFeature
+from ..util import io_util
 
 
 def write_extended_data(output_path, symbol, index_value_list, data_map):
@@ -41,6 +41,9 @@ def get_ou_runner_data(filename, model_results_path, txn_sample_rate, model_map=
     if "execution" in filename:
         # Handle the execution data
         return _execution_get_ou_runner_data(filename, model_map, predict_cache, trim)
+    if "pipeline" in filename:
+        # Handle online pipeline data
+        return _get_online_pipeline_data(filename, model_map, predict_cache)
     if "gc" in filename or "log" in filename:
         # Handle of the gc or log data with interval-based conversion
         return _interval_get_ou_runner_data(filename, model_results_path)
@@ -215,6 +218,105 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
 
             if len(opunits) > 1:
                 raise Exception('Unmodelled OperatingUnits detected: {}'.format(opunits))
+
+            # Record into predict_cache
+            key = tuple([opunits[0][0]] + opunits[0][1])
+            if key not in raw_data_map:
+                raw_data_map[key] = []
+            raw_data_map[key].append(y_merged)
+
+    # Postprocess the raw_data_map -> data_map
+    # We need to do this here since we need to have seen all the data
+    # before we can start pruning. This step is done here so dropped
+    # data don't actually become a part of the model.
+    for key in raw_data_map:
+        len_vec = len(raw_data_map[key])
+        raw_data_map[key].sort(key=lambda x: x[-1])
+
+        # compute how much to trim
+        trim_side = trim * len_vec
+        low = int(math.ceil(trim_side))
+        high = len_vec - low
+        if low >= high:
+            # if bounds are bad, just take the median
+            raw_data_map[key] = np.median(raw_data_map[key], axis=0)
+        else:
+            # otherwise, x% trimmed mean
+            raw_data_map[key] = np.average(raw_data_map[key][low:high], axis=0)
+
+        # Expose the singular data point
+        opunit = key[0]
+        if opunit not in data_map:
+            data_map[opunit] = []
+
+        predict = raw_data_map[key]
+        predict_cache[key] = predict
+        data_map[opunit].append(list(key[1:]) + list(predict))
+
+    data_list = []
+    for opunit, values in data_map.items():
+        np_value = np.array(values)
+        x = np_value[:, :input_output_boundary]
+        y = np_value[:, -data_info.instance.OU_MODEL_TARGET_NUM:]
+        data_list.append(OpUnitData(opunit, x, y))
+
+    return data_list
+
+
+def _get_online_pipeline_data(filename, model_map, predict_cache):
+    """Get the training data from the ou runner
+
+    :param filename: the input data file
+    :param model_map: the map from OpUnit to the ou model
+    :param predict_cache: cache for the ou model prediction
+    :param trim: % of too high/too low anomalies to prune
+    :return: the list of Data for execution operating units
+    """
+
+    # Get the ou runner data for the execution engine
+    data_map = {}
+    raw_data_map = {}
+    input_output_boundary = math.nan
+    with open(filename, "r") as f:
+        reader = csv.reader(f, delimiter=",", skipinitialspace=True)
+        indexes = next(reader)
+        data_info.instance.parse_csv_header(indexes, True)
+        features_vector_index = data_info.instance.raw_features_csv_index[ExecutionFeature.FEATURES]
+        raw_boundary = data_info.instance.raw_features_csv_index[data_info.instance.INPUT_OUTPUT_BOUNDARY]
+        input_output_boundary = len(data_info.instance.input_csv_index)
+
+        for line in reader:
+            # drop query_id, pipeline_id, num_features, features_vector
+            record = [d for i, d in enumerate(line) if i >= raw_boundary]
+            data = list(map(data_util.convert_string_to_numeric, record))
+            x_multiple = data[:input_output_boundary]
+            y_merged = np.array(data[-data_info.instance.OU_MODEL_TARGET_NUM:])
+
+            # Get the opunits located within
+            opunits_and_ys = []
+            features = line[features_vector_index].split(';')
+            pipeline_prediction = np.zeros(data_info.instance.OU_MODEL_TARGET_NUM)
+            for idx, feature in enumerate(features):
+                opunit = OpUnit[feature]
+                x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
+                assert (opunit in model_map), "OperatingUnit not found in the mini models"
+                key = [opunit] + x_loc
+                if tuple(key) not in predict_cache:
+                    predict = model_map[opunit].predict(np.array(x_loc).reshape(1, -1))[0]
+                    predict_cache[tuple(key)] = predict
+                    assert len(predict) == len(y_merged)
+                else:
+                    predict = predict_cache[tuple(key)]
+                    assert len(predict) == len(y_merged)
+                pipeline_prediction = pipeline_prediction + predict
+                print(opunit)
+                print(pipeline_prediction)
+
+            print(y_merged)
+            print("HELLO")
+
+            y_merged = np.clip(y_merged, 0, None)
+            assert (len(opunits_and_ys) == len(features)), "didn't get all the pipeline's operating units"
 
             # Record into predict_cache
             key = tuple([opunits[0][0]] + opunits[0][1])
