@@ -43,7 +43,7 @@ def get_ou_runner_data(filename, model_results_path, txn_sample_rate, model_map=
         return _execution_get_ou_runner_data(filename, model_map, predict_cache, trim)
     if "pipeline" in filename:
         # Handle online pipeline data
-        return _get_online_pipeline_data(filename, model_map, predict_cache)
+        return _get_online_pipeline_data(filename, model_map, predict_cache, trim)
     if "gc" in filename or "log" in filename:
         # Handle of the gc or log data with interval-based conversion
         return _interval_get_ou_runner_data(filename, model_results_path)
@@ -263,7 +263,7 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
     return data_list
 
 
-def _get_online_pipeline_data(filename, model_map, predict_cache):
+def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
     """Get the training data from the ou runner
 
     :param filename: the input data file
@@ -296,6 +296,7 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
             opunits_and_ys = []
             features = line[features_vector_index].split(';')
             pipeline_prediction = np.zeros(data_info.instance.OU_MODEL_TARGET_NUM)
+            assert len(pipeline_prediction) == len(y_merged)
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
@@ -315,14 +316,42 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
             print(y_merged)
             print("HELLO")
 
-            y_merged = np.clip(y_merged, 0, None)
+            # compute the ratio of y values based on the predictions, and apply to get y_merged for this opunit
+            for idx, feature in enumerate(features):
+                opunit = OpUnit[feature]
+                x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
+                key = [opunit] + x_loc
+                assert (tuple(key) in predict_cache),"key not found in the prediction cache"
+                predict = predict_cache[tuple(key)]
+                ratio = predict / pipeline_prediction
+                print(ratio)
+                y_opunit = y_merged * ratio
+                print(y_opunit)
+                y_opunit = np.clip(y_opunit, 0, None)
+                opunits_and_ys.append(((opunit, x_loc),y_opunit))
+
             assert (len(opunits_and_ys) == len(features)), "didn't get all the pipeline's operating units"
+            print("HELLO2")
 
             # Record into predict_cache
-            key = tuple([opunits[0][0]] + opunits[0][1])
-            if key not in raw_data_map:
-                raw_data_map[key] = []
-            raw_data_map[key].append(y_merged)
+            for data_point in opunits_and_ys:
+                x_opunit = data_point[0]
+                y_opunit = data_point[1]
+                # x_opunit[0] is the opunit
+                # x_opunit[1] is input feature
+                # y_opunit should be post-subtraction
+                key = tuple([x_opunit[0]] + x_opunit[1])
+                print(key)
+                print(y_opunit)
+                if key not in raw_data_map:
+                    raw_data_map[key] = []
+                raw_data_map[key].append(y_opunit)
+
+    print("HELLO3")
+
+    print(raw_data_map)
+
+    print("HELLO4")
 
     # Postprocess the raw_data_map -> data_map
     # We need to do this here since we need to have seen all the data
