@@ -310,28 +310,34 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
                     predict = predict_cache[tuple(key)]
                     assert len(predict) == len(y_merged)
                 pipeline_prediction = pipeline_prediction + predict
-                print(opunit)
-                print(pipeline_prediction)
+                # print(opunit)
+                # print(pipeline_prediction)
 
-            print(y_merged)
-            print("HELLO")
+            # print(y_merged)
+            # print("HELLO")
 
             # compute the ratio of y values based on the predictions, and apply to get y_merged for this opunit
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
                 key = [opunit] + x_loc
-                assert (tuple(key) in predict_cache),"key not found in the prediction cache"
+                assert (tuple(key) in predict_cache), "key not found in the prediction cache"
                 predict = predict_cache[tuple(key)]
+                # print("PREDICT: {}".format(predict))
+                # print("PIPELINE_PREDICTION: {}".format(pipeline_prediction))
+                pipeline_prediction[pipeline_prediction == 0.0] = 1.0
                 ratio = predict / pipeline_prediction
-                print(ratio)
+                # ratio = np.nan_to_num(ratio, nan=1.0)
+                # print("RATIO: {}".format(ratio))
+                # print(ratio)
                 y_opunit = y_merged * ratio
-                print(y_opunit)
+                # print(y_opunit)
                 y_opunit = np.clip(y_opunit, 0, None)
-                opunits_and_ys.append(((opunit, x_loc),y_opunit))
+                y_opunit = np.ceil(y_opunit)
+                opunits_and_ys.append(((opunit, x_loc), y_opunit))
 
             assert (len(opunits_and_ys) == len(features)), "didn't get all the pipeline's operating units"
-            print("HELLO2")
+            # print("HELLO2")
 
             # Record into predict_cache
             for data_point in opunits_and_ys:
@@ -341,17 +347,15 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
                 # x_opunit[1] is input feature
                 # y_opunit should be post-subtraction
                 key = tuple([x_opunit[0]] + x_opunit[1])
-                print(key)
-                print(y_opunit)
+                # print(key)
+                # print(y_opunit)
                 if key not in raw_data_map:
                     raw_data_map[key] = []
                 raw_data_map[key].append(y_opunit)
 
-    print("HELLO3")
+    # print("HELLO3")
 
-    print(raw_data_map)
-
-    print("HELLO4")
+    # print("HELLO4")
 
     # Postprocess the raw_data_map -> data_map
     # We need to do this here since we need to have seen all the data
@@ -386,8 +390,13 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
         np_value = np.array(values)
         x = np_value[:, :input_output_boundary]
         y = np_value[:, -data_info.instance.OU_MODEL_TARGET_NUM:]
+        print(opunit)
+        print(x)
+        print(y)
         data_list.append(OpUnitData(opunit, x, y))
 
+    print(len(data_list))
+    # exit()
     return data_list
 
 
