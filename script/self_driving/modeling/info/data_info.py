@@ -92,6 +92,9 @@ class DataInfo:
                 self.target_csv_index[Target[index.upper()]] = i - len(header)
             elif input_output_boundary is not None and i >= input_output_boundary:
                 self.input_csv_index[ExecutionFeature[index.upper()]] = i - input_output_boundary
+            elif input_output_boundary is None:
+                # used for the split OU runnner data
+                self.input_csv_index[ExecutionFeature[index.upper()]] = i
 
 
 instance = DataInfo()

@@ -43,7 +43,7 @@ def get_ou_runner_data(filename, model_results_path, txn_sample_rate, model_map=
         return _execution_get_ou_runner_data(filename, model_map, predict_cache, trim)
     if "pipeline" in filename:
         # Handle online pipeline data
-        return _get_online_pipeline_data(filename, model_map, predict_cache, trim)
+        return _get_online_pipeline_data(filename, model_map, predict_cache)
     if "gc" in filename or "log" in filename:
         # Handle of the gc or log data with interval-based conversion
         return _interval_get_ou_runner_data(filename, model_results_path)
@@ -199,6 +199,10 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
             features = line[features_vector_index].split(';')
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
+                # create a csv file for this OU
+                opunit_file = "/home/matt/split_dev9_runner_data/{}.csv".format(feature.lower())
+                if not os.path.isfile(opunit_file):
+                    io_util.create_csv_file(opunit_file, indexes[4:])
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
                 if opunit in model_map:
                     key = [opunit] + x_loc
@@ -253,6 +257,9 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
+        opunit_file = "/home/matt/split_dev9_runner_data/{}.csv".format(opunit.name.lower())
+        io_util.write_csv_data(opunit_file, key[1:] + (0.0, 0.0), list(predict))
+
     data_list = []
     for opunit, values in data_map.items():
         np_value = np.array(values)
@@ -263,13 +270,12 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
     return data_list
 
 
-def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
+def _get_online_pipeline_data(filename, model_map, predict_cache):
     """Get the training data from the ou runner
 
     :param filename: the input data file
     :param model_map: the map from OpUnit to the ou model
     :param predict_cache: cache for the ou model prediction
-    :param trim: % of too high/too low anomalies to prune
     :return: the list of Data for execution operating units
     """
 
@@ -299,6 +305,10 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
             assert len(pipeline_prediction) == len(y_merged)
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
+                # create a csv file for this OU
+                opunit_file = "/home/matt/split_dev9_online_data/{}.csv".format(feature.lower())
+                if not os.path.isfile(opunit_file):
+                    io_util.create_csv_file(opunit_file, indexes[4:])
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
                 assert (opunit in model_map), "OperatingUnit not found in the mini models"
                 key = [opunit] + x_loc
@@ -310,11 +320,6 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
                     predict = predict_cache[tuple(key)]
                     assert len(predict) == len(y_merged)
                 pipeline_prediction = pipeline_prediction + predict
-                # print(opunit)
-                # print(pipeline_prediction)
-
-            # print(y_merged)
-            # print("HELLO")
 
             # compute the ratio of y values based on the predictions, and apply to get y_merged for this opunit
             for idx, feature in enumerate(features):
@@ -323,21 +328,14 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
                 key = [opunit] + x_loc
                 assert (tuple(key) in predict_cache), "key not found in the prediction cache"
                 predict = predict_cache[tuple(key)]
-                # print("PREDICT: {}".format(predict))
-                # print("PIPELINE_PREDICTION: {}".format(pipeline_prediction))
-                pipeline_prediction[pipeline_prediction == 0.0] = 1.0
+                pipeline_prediction[pipeline_prediction == 0.0] = 1.0  # avoid divide by zero
                 ratio = predict / pipeline_prediction
-                # ratio = np.nan_to_num(ratio, nan=1.0)
-                # print("RATIO: {}".format(ratio))
-                # print(ratio)
                 y_opunit = y_merged * ratio
-                # print(y_opunit)
                 y_opunit = np.clip(y_opunit, 0, None)
-                y_opunit = np.ceil(y_opunit)
+                # y_opunit = np.ceil(y_opunit)
                 opunits_and_ys.append(((opunit, x_loc), y_opunit))
 
             assert (len(opunits_and_ys) == len(features)), "didn't get all the pipeline's operating units"
-            # print("HELLO2")
 
             # Record into predict_cache
             for data_point in opunits_and_ys:
@@ -347,15 +345,9 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
                 # x_opunit[1] is input feature
                 # y_opunit should be post-subtraction
                 key = tuple([x_opunit[0]] + x_opunit[1])
-                # print(key)
-                # print(y_opunit)
                 if key not in raw_data_map:
                     raw_data_map[key] = []
                 raw_data_map[key].append(y_opunit)
-
-    # print("HELLO3")
-
-    # print("HELLO4")
 
     # Postprocess the raw_data_map -> data_map
     # We need to do this here since we need to have seen all the data
@@ -365,16 +357,7 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
         len_vec = len(raw_data_map[key])
         raw_data_map[key].sort(key=lambda x: x[-1])
 
-        # compute how much to trim
-        trim_side = trim * len_vec
-        low = int(math.ceil(trim_side))
-        high = len_vec - low
-        if low >= high:
-            # if bounds are bad, just take the median
-            raw_data_map[key] = np.median(raw_data_map[key], axis=0)
-        else:
-            # otherwise, x% trimmed mean
-            raw_data_map[key] = np.average(raw_data_map[key][low:high], axis=0)
+        raw_data_map[key] = np.median(raw_data_map[key], axis=0)
 
         # Expose the singular data point
         opunit = key[0]
@@ -385,18 +368,17 @@ def _get_online_pipeline_data(filename, model_map, predict_cache, trim):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
+        opunit_file = "/home/matt/split_dev9_online_data/{}.csv".format(opunit.name.lower())
+        io_util.write_csv_data(opunit_file, key[1:] + (0.0, 0.0), list(predict))
+
     data_list = []
     for opunit, values in data_map.items():
         np_value = np.array(values)
         x = np_value[:, :input_output_boundary]
         y = np_value[:, -data_info.instance.OU_MODEL_TARGET_NUM:]
-        print(opunit)
-        print(x)
-        print(y)
         data_list.append(OpUnitData(opunit, x, y))
 
-    print(len(data_list))
-    # exit()
+    exit()
     return data_list
 
 
