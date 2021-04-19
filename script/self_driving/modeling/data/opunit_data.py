@@ -336,11 +336,10 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
                 key = [opunit] + x_loc
                 assert (tuple(key) in predict_cache), "key not found in the prediction cache"
                 predict = predict_cache[tuple(key)]
-                pipeline_prediction[pipeline_prediction == 0.0] = 1.0  # avoid divide by zero
-                ratio = predict / pipeline_prediction
+                ratio = np.divide(predict, pipeline_prediction, out=np.zeros_like(predict),
+                                  where=pipeline_prediction != 0)
                 y_opunit = y_merged * ratio
                 y_opunit = np.clip(y_opunit, 0, None)
-                # y_opunit = np.ceil(y_opunit)
                 opunits_and_ys.append(((opunit, x_loc), y_opunit))
 
             assert (len(opunits_and_ys) == len(features)), "didn't get all the pipeline's operating units"
@@ -373,6 +372,11 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
             data_map[opunit] = []
 
         predict = raw_data_map[key]
+
+        # skip it if there's no data:
+        if predict[0] == 0:
+            continue
+
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
