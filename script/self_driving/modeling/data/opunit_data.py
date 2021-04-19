@@ -199,10 +199,13 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
             features = line[features_vector_index].split(';')
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
-                # create a csv file for this OU
-                opunit_file = "/home/matt/split_dev9_runner_data/{}.csv".format(feature.lower())
-                if not os.path.isfile(opunit_file):
-                    io_util.create_csv_file(opunit_file, indexes[4:])
+                # create csv files for this OU
+                runner_file = "/home/matt/split_dev9_runner_data/{}.csv".format(feature.lower())
+                if not os.path.isfile(runner_file):
+                    io_util.create_csv_file(runner_file, indexes[4:])
+                merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(feature.lower())
+                if not os.path.isfile(merged_file):
+                    io_util.create_csv_file(merged_file, indexes[4:])
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
                 if opunit in model_map:
                     key = [opunit] + x_loc
@@ -257,8 +260,10 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
-        opunit_file = "/home/matt/split_dev9_runner_data/{}.csv".format(opunit.name.lower())
-        io_util.write_csv_data(opunit_file, key[1:] + (0.0, 0.0), list(predict))
+        runner_file = "/home/matt/split_dev9_runner_data/{}.csv".format(opunit.name.lower())
+        io_util.write_csv_data(runner_file, key[1:] + (0.0, 0.0), list(predict))
+        merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(opunit.name.lower())
+        io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
     data_list = []
     for opunit, values in data_map.items():
@@ -305,10 +310,13 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
             assert len(pipeline_prediction) == len(y_merged)
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
-                # create a csv file for this OU
-                opunit_file = "/home/matt/split_dev9_online_data/{}.csv".format(feature.lower())
-                if not os.path.isfile(opunit_file):
-                    io_util.create_csv_file(opunit_file, indexes[4:])
+                # create csv files for this OU
+                online_file = "/home/matt/split_dev9_online_data/{}.csv".format(feature.lower())
+                if not os.path.isfile(online_file):
+                    io_util.create_csv_file(online_file, indexes[4:])
+                merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(feature.lower())
+                if not os.path.isfile(merged_file):
+                    io_util.create_csv_file(merged_file, indexes[4:])
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
                 assert (opunit in model_map), "OperatingUnit not found in the mini models"
                 key = [opunit] + x_loc
@@ -368,8 +376,10 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
-        opunit_file = "/home/matt/split_dev9_online_data/{}.csv".format(opunit.name.lower())
-        io_util.write_csv_data(opunit_file, key[1:] + (0.0, 0.0), list(predict))
+        online_file = "/home/matt/split_dev9_online_data/{}.csv".format(opunit.name.lower())
+        io_util.write_csv_data(online_file, key[1:] + (0.0, 0.0), list(predict))
+        merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(opunit.name.lower())
+        io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
     data_list = []
     for opunit, values in data_map.items():
