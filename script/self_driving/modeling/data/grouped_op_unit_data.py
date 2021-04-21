@@ -1,14 +1,13 @@
 import csv
-import numpy as np
-import copy
-import tqdm
-import pandas as pd
-import os
 import logging
+import numpy as np
+import os
+import pandas as pd
+import tqdm
 
 from . import data_util
-from ..info import data_info
 from .. import interference_model_config
+from ..info import data_info
 from ..type import ConcurrentCountingMode, OpUnit, Target, ExecutionFeature
 
 
@@ -123,7 +122,8 @@ def _pipeline_get_grouped_op_unit_data(filename, warmup_period, ee_sample_rate):
     data_list = []
     with open(filename, "r") as f:
         reader = csv.reader(f, delimiter=",", skipinitialspace=True)
-        next(reader)
+        header = next(reader)
+        data_info.instance.parse_csv_header(header, True)
         features_vector_index = data_info.instance.raw_features_csv_index[ExecutionFeature.FEATURES]
         input_output_boundary = data_info.instance.raw_features_csv_index[data_info.instance.INPUT_OUTPUT_BOUNDARY]
         input_end_boundary = len(data_info.instance.input_csv_index)
