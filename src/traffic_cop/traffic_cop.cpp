@@ -509,7 +509,11 @@ TrafficCopResult TrafficCop::RunExecutableQuery(const common::ManagedPointer<net
     if (query_type == network::QueryType::QUERY_SELECT) {
       // For selects we rely on the OutputWriter to store the number of rows affected because sequential scan
       // iteration can happen in multiple pipelines
-      return {ResultType::COMPLETE, writer.NumRows()};
+      const auto num_tuples = writer.NumRows();
+      const auto num_columns = physical_plan->GetOutputSchema()->NumColumns();
+      connection_ctx->write_features_.num_tuples_ = num_tuples;
+      connection_ctx->write_features_.num_columns_ = num_columns;
+      return {ResultType::COMPLETE, num_tuples};
     }
     // Other queries (INSERT, UPDATE, DELETE) retrieve rows affected from the execution context since other queries
     // might not have any output otherwise
