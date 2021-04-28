@@ -196,8 +196,7 @@ Transition ConnectionHandle::TryRead() {
     const auto read_transition = io_wrapper_->FillReadBuffer();
     common::thread_context.resource_tracker_.Stop();
     // stash features and metrics in context
-    context_.read_features_.bytes_ = io_wrapper_->GetReadBuffer()->Size();
-    common::thread_context.resource_tracker_.SetNetworkRead(context_.read_features_.bytes_);
+    common::thread_context.resource_tracker_.SetNetworkRead(io_wrapper_->GetReadBuffer()->Size());
     context_.read_metrics_ = common::thread_context.resource_tracker_.GetMetrics();
     // flush at next opportunity
     flush_read_features_ = true;
@@ -226,11 +225,11 @@ Transition ConnectionHandle::TryWrite() {
         common::thread_context.metrics_store_->ComponentToRecord(metrics::MetricsComponent::NETWORK);
     if (do_a_metrics_thing) {
       // perform write while profiling
-      context_.write_features_.bytes_ = io_wrapper_->GetWriteQueue()->Size();
+      const auto write_bytes = io_wrapper_->GetWriteQueue()->Size();
       common::thread_context.resource_tracker_.Start();
       const auto write_transition = io_wrapper_->FlushAllWrites();
       common::thread_context.resource_tracker_.Stop();
-      common::thread_context.resource_tracker_.SetNetworkWrite(context_.write_features_.bytes_);
+      common::thread_context.resource_tracker_.SetNetworkWrite(write_bytes);
       if (context_.write_features_.num_queries_ == 1) {
         // only flush metrics if we have a single query. Don't know how to model anything else right now.
         common::thread_context.metrics_store_->RecordNetworkData(context_.write_features_,
