@@ -17,9 +17,9 @@ if __name__ == "__main__":
     print(opts)
     for o, a in opts:
         if o in "--input":
-            input = a
+            input_file = a
         elif o in "--output":
-            output = a
+            output_folder = a
         else:
             assert False, "unhandled option"
 

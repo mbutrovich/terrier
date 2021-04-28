@@ -70,7 +70,9 @@ class OpUnit(enum.IntEnum):
 
     # Networking opunits
     BIND_COMMAND = 40,
-    EXECUTE_COMMAND = 41
+    EXECUTE_COMMAND = 41,
+
+    NETWORK_WRITE = 42
 
 
 class ExecutionFeature(enum.IntEnum):
@@ -99,6 +101,8 @@ class ExecutionFeature(enum.IntEnum):
     BUFFER_UNLINKED = 15,
     READONLY_UNLINKED = 16,
     INTERVAL = 17,
+    NUM_COLUMNS = 18,
+    NUM_TUPLES = 19,
 
 
 class ConcurrentCountingMode(enum.Enum):
