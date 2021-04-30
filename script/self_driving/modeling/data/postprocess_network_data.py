@@ -40,5 +40,4 @@ if __name__ == "__main__":
         data_list.append(list(key) + list(np.median(raw_data_map[key], axis=0)))
 
     final_output = pd.DataFrame(data_list, columns=writes.columns)
-    print(final_output)
     final_output.to_csv("{}".format(output_file), index=False)
