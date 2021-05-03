@@ -7,18 +7,21 @@ import sys
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "io:", ["input=", "output="])
+        opts, args = getopt.getopt(sys.argv[1:], "io:m", ["input=", "output=", "collapse"])
     except getopt.GetoptError as err:
         # print help information and exit:
         print(err)  # will print something like "option -a not recognized"
         sys.exit(2)
     input_file = None
     output_file = None
+    collapse = False
     for o, a in opts:
         if o in "--input":
             input_file = a
         elif o in "--output":
             output_file = a
+        elif o in "--collapse":
+            collapse = True
         else:
             assert False, "unhandled option"
 
@@ -29,6 +32,11 @@ if __name__ == "__main__":
     df = pd.read_csv(input_file)
     writes = df[df['op_unit'] == 2]  # filter only the writes
     writes = writes.drop(['op_unit'], axis=1)  # drop the op_unit column
+
+    if collapse == False:
+        writes.to_csv("{}".format(output_file), index=False)
+        exit()
+
     raw_data_map = {}
     for i, row in writes.iterrows():
         key = tuple(row[0:2])

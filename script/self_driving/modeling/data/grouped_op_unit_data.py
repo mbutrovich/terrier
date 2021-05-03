@@ -35,6 +35,8 @@ def get_grouped_op_unit_data(filename, warmup_period, ee_sample_rate, txn_sample
     if "command" in filename:
         # Handle networking OUs
         return _default_get_global_data(filename, network_sample_rate)
+    if "network" in filename:
+        return _network_get_global_data(filename, network_sample_rate)
 
     return _default_get_global_data(filename)
 
@@ -46,6 +48,23 @@ def _default_get_global_data(filename, sample_rate=100):
 
     x = df.iloc[:, :-data_info.instance.METRICS_OUTPUT_NUM].values
     y = df.iloc[:, -data_info.instance.OU_MODEL_TARGET_NUM:].values
+
+    # Construct the new data
+    opunit = OpUnit[file_name.upper()]
+    data_list = []
+
+    for i in range(x.shape[0]):
+        data_list.append(GroupedOpUnitData("{}".format(file_name), [(opunit, x[i])], y[i], sample_rate))
+    return data_list
+
+
+def _network_get_global_data(filename, sample_rate=100):
+    # In the default case, the data does not need any pre-processing and the file name indicates the opunit
+    df = pd.read_csv(filename)
+    file_name = os.path.splitext(os.path.basename(filename))[0]
+
+    x = df.iloc[:, :-data_info.instance.METRICS_OUTPUT_NUM].values
+    y = df.iloc[:, -data_info.instance.METRICS_OUTPUT_NUM:].values  # why different from default?
 
     # Construct the new data
     opunit = OpUnit[file_name.upper()]
