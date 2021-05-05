@@ -14,6 +14,7 @@ class ReadBuffer;
 
 class network_features {
  public:
+  int32_t query_id_ = -1;
   uint8_t operating_unit_ = 0;
   uint64_t num_queries_ = 0;  // TODO(Matt): right now we're only going to count messages that contain a single query
   // since it's not clear how to model messages that contain multiple queries

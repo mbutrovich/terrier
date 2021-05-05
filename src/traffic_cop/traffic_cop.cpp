@@ -505,6 +505,8 @@ TrafficCopResult TrafficCop::RunExecutableQuery(const common::ManagedPointer<net
   }
 
   if (connection_ctx->TransactionState() == network::NetworkTransactionStateType::BLOCK) {
+    connection_ctx->read_features_.query_id_ = connection_ctx->write_features_.query_id_ =
+        static_cast<uint32_t>(exec_query->GetQueryId());
     // Execution didn't set us to FAIL state, go ahead and return command complete
     if (query_type == network::QueryType::QUERY_SELECT) {
       // For selects we rely on the OutputWriter to store the number of rows affected because sequential scan
