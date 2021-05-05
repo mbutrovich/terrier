@@ -52,8 +52,8 @@ class NetworkMetricRawData : public AbstractRawData {
     auto &outfile = (*outfiles)[0];
 
     for (const auto &data : network_data_) {
-      outfile << static_cast<uint32_t>(data.features_.operating_unit_) << ", " << data.features_.num_columns_ << ", "
-              << data.features_.num_tuples_ << ", ";
+      outfile << data.features_.query_id_ << ", " << static_cast<uint32_t>(data.features_.operating_unit_) << ", "
+              << data.features_.num_columns_ << ", " << data.features_.num_tuples_ << ", ";
       data.resource_metrics_.ToCSV(outfile);
       outfile << std::endl;
     }
@@ -68,7 +68,7 @@ class NetworkMetricRawData : public AbstractRawData {
    * Columns to use for writing to CSV.
    * Note: This includes the columns for the input feature, but not the output (resource counters)
    */
-  static constexpr std::array<std::string_view, 1> FEATURE_COLUMNS = {"op_unit, num_columns, num_tuples"};
+  static constexpr std::array<std::string_view, 1> FEATURE_COLUMNS = {"query_id, op_unit, num_columns, num_tuples"};
 
  private:
   friend class NetworkMetric;
