@@ -39,7 +39,7 @@ if __name__ == "__main__":
     if 'query_id' in writes.columns:
         writes = writes[writes['query_id'] != -1]  # remove -1 query_ids
 
-    if strip:
+    if strip and 'query_id' in writes.columns:
         writes = writes.drop(['query_id'], axis=1)  # drop the query_id column
 
     if not collapse:
