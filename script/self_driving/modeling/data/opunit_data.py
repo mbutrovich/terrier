@@ -127,7 +127,7 @@ def _interval_get_ou_runner_data(filename, model_results_path):
 
     x = df.iloc[:, :-data_info.instance.METRICS_OUTPUT_NUM].values
     y = df.iloc[:, -data_info.instance.OU_MODEL_TARGET_NUM:].values
-    start_times = df.iloc[:, data_info.instance.RAW_TARGET_CSV_INDEX[Target.START_TIME]].values
+    start_times = df.iloc[:, data_info.instance.raw_target_csv_index[Target.START_TIME]].values
     logging.info("Loaded file: {}".format(OpUnit[file_name.upper()]))
 
     # change the data based on the interval for the periodically invoked operating units
