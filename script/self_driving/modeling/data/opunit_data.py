@@ -197,19 +197,11 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
             x_multiple = data[:input_output_boundary]
             y_merged = np.array(data[-data_info.instance.OU_MODEL_TARGET_NUM:])
 
-            print(record)
-            print(data)
-            print(x_multiple)
-            print(y_merged)
-
             # Get the opunits located within
             opunits = []
             features = line[features_vector_index].split(';')
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
-
-                print(opunit)
-                print(feature)
 
                 # create csv files for this OU
                 runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
@@ -277,7 +269,6 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         merged_file = "{}{}.csv".format(merged_data_folder, opunit.name.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
-    exit()
     data_list = []
     for opunit, values in data_map.items():
         np_value = np.array(values)
