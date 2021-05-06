@@ -106,6 +106,7 @@ class ExecutionFeature(enum.IntEnum):
     NUM_BYTES = 20,
     NUM_RECORDS = 21,
     NUM_TXNS = 22,
+    NUM_BUFFERS = 23,
 
 
 class ConcurrentCountingMode(enum.Enum):
