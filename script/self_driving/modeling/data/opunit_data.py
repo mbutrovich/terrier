@@ -175,6 +175,9 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
     :return: the list of Data for execution operating units
     """
 
+    runner_data_folder = '/home/matt/runner_ou_data/'
+    merged_data_folder = '/home/matt/hybrid_ou_data/'
+
     # Get the ou runner data for the execution engine
     data_map = {}
     raw_data_map = {}
@@ -200,10 +203,10 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
                 # create csv files for this OU
-                runner_file = "/home/matt/split_dev9_runner_data/{}.csv".format(feature.lower())
+                runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
                 if not os.path.isfile(runner_file):
                     io_util.create_csv_file(runner_file, indexes[4:])
-                merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(feature.lower())
+                merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
                 if not os.path.isfile(merged_file):
                     io_util.create_csv_file(merged_file, indexes[4:])
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
@@ -260,9 +263,9 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
-        runner_file = "/home/matt/split_dev9_runner_data/{}.csv".format(opunit.name.lower())
+        runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
         io_util.write_csv_data(runner_file, key[1:] + (0.0, 0.0), list(predict))
-        merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(opunit.name.lower())
+        merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
     data_list = []
@@ -283,6 +286,9 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
     :param predict_cache: cache for the ou model prediction
     :return: the list of Data for execution operating units
     """
+
+    online_data_folder = '/home/matt/online_ou_data/'
+    merged_data_folder = '/home/matt/hybrid_ou_data/'
 
     # Get the ou runner data for the execution engine
     data_map = {}
@@ -311,10 +317,10 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
                 # create csv files for this OU
-                online_file = "/home/matt/split_dev9_online_data/{}.csv".format(feature.lower())
+                online_file = "{}{}.csv".format(online_data_folder, feature.lower())
                 if not os.path.isfile(online_file):
                     io_util.create_csv_file(online_file, indexes[4:])
-                merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(feature.lower())
+                merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
                 if not os.path.isfile(merged_file):
                     io_util.create_csv_file(merged_file, indexes[4:])
                 x_loc = [v[idx] if type(v) == list else v for v in x_multiple]
@@ -380,9 +386,9 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
-        online_file = "/home/matt/split_dev9_online_data/{}.csv".format(opunit.name.lower())
+        online_file = "{}{}.csv".format(online_data_folder, feature.lower())
         io_util.write_csv_data(online_file, key[1:] + (0.0, 0.0), list(predict))
-        merged_file = "/home/matt/split_dev9_merged_data/{}.csv".format(opunit.name.lower())
+        merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
     data_list = []

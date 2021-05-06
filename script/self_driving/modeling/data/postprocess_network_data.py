@@ -7,7 +7,7 @@ import sys
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "io:m", ["input=", "output=", "collapse"])
+        opts, args = getopt.getopt(sys.argv[1:], "io:cs", ["input=", "output=", "collapse", "strip"])
     except getopt.GetoptError as err:
         # print help information and exit:
         print(err)  # will print something like "option -a not recognized"
@@ -15,13 +15,16 @@ if __name__ == "__main__":
     input_file = None
     output_file = None
     collapse = False
+    strip = False
     for o, a in opts:
-        if o in "--input":
+        if o in ['-i', '--input']:
             input_file = a
-        elif o in "--output":
+        elif o in ['-o', '--output']:
             output_file = a
-        elif o in "--collapse":
+        elif o in ['-c', '--collapse']:
             collapse = True
+        elif o in ['-s', '--strip']:
+            strip = True
         else:
             assert False, "unhandled option"
 
@@ -30,10 +33,16 @@ if __name__ == "__main__":
         sys.exit(2)
 
     df = pd.read_csv(input_file)
+    df.columns = df.columns.str.strip()
     writes = df[df['op_unit'] == 2]  # filter only the writes
     writes = writes.drop(['op_unit'], axis=1)  # drop the op_unit column
+    if 'query_id' in writes.columns:
+        writes = writes[writes['query_id'] != -1]  # remove -1 query_ids
 
-    if collapse == False:
+    if strip:
+        writes = writes.drop(['query_id'], axis=1)  # drop the query_id column
+
+    if not collapse:
         writes.to_csv("{}".format(output_file), index=False)
         exit()
 
