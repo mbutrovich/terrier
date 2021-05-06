@@ -274,6 +274,9 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         data_map[opunit].append(list(key[1:]) + list(predict))
 
         runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
+        print(runner_file)
+        print(key[1:])
+        print(list(predict))
         io_util.write_csv_data(runner_file, key[1:] + (0.0, 0.0), list(predict))
         merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
