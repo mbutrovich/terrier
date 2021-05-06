@@ -103,6 +103,9 @@ class ExecutionFeature(enum.IntEnum):
     INTERVAL = 17,
     NUM_COLUMNS = 18,
     NUM_TUPLES = 19,
+    NUM_BYTES = 20,
+    NUM_RECORDS = 21,
+    NUM_TXNS = 22,
 
 
 class ConcurrentCountingMode(enum.Enum):
