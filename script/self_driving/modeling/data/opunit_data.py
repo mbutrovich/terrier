@@ -235,7 +235,6 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
                 else:
                     opunits.append((opunit, x_loc))
 
-            exit()
             if len(opunits) > 1:
                 raise Exception('Unmodelled OperatingUnits detected: {}'.format(opunits))
 
@@ -281,6 +280,7 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
+    exit()
     data_list = []
     for opunit, values in data_map.items():
         np_value = np.array(values)
