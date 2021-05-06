@@ -197,11 +197,20 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
             x_multiple = data[:input_output_boundary]
             y_merged = np.array(data[-data_info.instance.OU_MODEL_TARGET_NUM:])
 
+            print(record)
+            print(data)
+            print(x_multiple)
+            print(y_merged)
+
             # Get the opunits located within
             opunits = []
             features = line[features_vector_index].split(';')
             for idx, feature in enumerate(features):
                 opunit = OpUnit[feature]
+
+                print(opunit)
+                print(feature)
+
                 # create csv files for this OU
                 runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
                 if not os.path.isfile(runner_file):
@@ -226,6 +235,7 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
                 else:
                     opunits.append((opunit, x_loc))
 
+            exit()
             if len(opunits) > 1:
                 raise Exception('Unmodelled OperatingUnits detected: {}'.format(opunits))
 
@@ -262,10 +272,6 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         predict = raw_data_map[key]
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
-
-        print(feature.lower())
-        print(key[1:])
-        print(list(predict))
 
         runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
         io_util.write_csv_data(runner_file, key[1:] + (0.0, 0.0), list(predict))
