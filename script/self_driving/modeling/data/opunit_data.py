@@ -272,12 +272,9 @@ def _execution_get_ou_runner_data(filename, model_map, predict_cache, trim):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
-        runner_file = "{}{}.csv".format(runner_data_folder, feature.lower())
-        print(runner_file)
-        print(key[1:])
-        print(list(predict))
+        runner_file = "{}{}.csv".format(runner_data_folder, opunit.name.lower())
         io_util.write_csv_data(runner_file, key[1:] + (0.0, 0.0), list(predict))
-        merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
+        merged_file = "{}{}.csv".format(merged_data_folder, opunit.name.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
     exit()
@@ -399,9 +396,9 @@ def _get_online_pipeline_data(filename, model_map, predict_cache):
         predict_cache[key] = predict
         data_map[opunit].append(list(key[1:]) + list(predict))
 
-        online_file = "{}{}.csv".format(online_data_folder, feature.lower())
+        online_file = "{}{}.csv".format(online_data_folder, opunit.name.lower())
         io_util.write_csv_data(online_file, key[1:] + (0.0, 0.0), list(predict))
-        merged_file = "{}{}.csv".format(merged_data_folder, feature.lower())
+        merged_file = "{}{}.csv".format(merged_data_folder, opunit.name.lower())
         io_util.write_csv_data(merged_file, key[1:] + (0.0, 0.0), list(predict))
 
     data_list = []
