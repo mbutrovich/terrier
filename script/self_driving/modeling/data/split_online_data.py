@@ -28,12 +28,20 @@ if __name__ == "__main__":
 
     df = pd.read_csv(input_file)
     df.columns = df.columns.str.strip()
-    unique_query_ids = pd.unique(df['query_id'])
-    np.random.shuffle(unique_query_ids)
-    split_query_ids = np.array_split(unique_query_ids, 5)
-    for i in range(5):
-        training_data = df[~df.query_id.isin(split_query_ids[i])]
-        test_data = df[df.query_id.isin(split_query_ids[i])]
-        training_data.to_csv("{}/training_{}.csv".format(output_folder, i),
-                             index=False)
-        test_data.to_csv("{}/test_{}.csv".format(output_folder, i), index=False)
+    if 'query_id' in df.columns:
+        unique_query_ids = pd.unique(df['query_id'])
+        np.random.shuffle(unique_query_ids)
+        split_query_ids = np.array_split(unique_query_ids, 5)
+        for i in range(5):
+            training_data = df[~df.query_id.isin(split_query_ids[i])]
+            test_data = df[df.query_id.isin(split_query_ids[i])]
+            training_data.to_csv("{}/training_{}.csv".format(output_folder, i),
+                                 index=False)
+            test_data.to_csv("{}/test_{}.csv".format(output_folder, i), index=False)
+    else:
+        chunk_size = len(df) // 5
+        for test_data in np.array_split(df, 5):
+            training_data = df[~df.query_id.isin(test_data)]
+            training_data.to_csv("{}/training_{}.csv".format(output_folder, i),
+                                 index=False)
+            test_data.to_csv("{}/test_{}.csv".format(output_folder, i), index=False)
