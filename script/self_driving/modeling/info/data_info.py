@@ -73,6 +73,12 @@ class DataInfo:
         :param header: array of CSV column headers
         :param raw_boundary: whether there is a raw boundary or not
         """
+
+        self.raw_features_csv_index = {}
+        self.raw_target_csv_index = {}
+        self.input_csv_index = {}
+        self.target_csv_index = {}
+
         for i, index in enumerate(header):
             if index.upper() not in ExecutionFeature.__members__:
                 self.raw_target_csv_index[Target[index.upper()]] = i
