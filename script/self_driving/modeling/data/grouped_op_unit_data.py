@@ -162,11 +162,6 @@ def _pipeline_get_grouped_op_unit_data(filename, warmup_period, ee_sample_rate):
         reader = csv.reader(f, delimiter=",", skipinitialspace=True)
         header = next(reader)
         data_info.instance.parse_csv_header(header, True)
-        print(data_info.instance.raw_features_csv_index)
-        print(data_info.instance.raw_target_csv_index)
-        print(data_info.instance.input_csv_index)
-        print(data_info.instance.target_csv_index)
-        exit()
         features_vector_index = data_info.instance.raw_features_csv_index[ExecutionFeature.FEATURES]
         input_output_boundary = data_info.instance.raw_features_csv_index[data_info.instance.INPUT_OUTPUT_BOUNDARY]
         input_end_boundary = len(data_info.instance.input_csv_index)
