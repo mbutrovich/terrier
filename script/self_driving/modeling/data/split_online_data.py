@@ -39,15 +39,33 @@ if __name__ == "__main__":
                                  index=False)
             test_data.to_csv("{}/test_{}.csv".format(output_folder, i), index=False)
     else:
-        chunk_size = len(df) // 5
-        i = 0
         test = np.array_split(df, 5)
-        print(df)
-        print(test)
-        exit()
-        for test_data in np.array_split(df, 5):
-            training_data = df[~df.isin(test_data)]
-            training_data.to_csv("{}/training_{}.csv".format(output_folder, i),
-                                 index=False)
-            test_data.to_csv("{}/test_{}.csv".format(output_folder, i), index=False)
-            i = i + 1
+        test[0].to_csv("{}/test_0.csv".format(output_folder), index=False)
+        test[1].to_csv("{}/training_0.csv".format(output_folder), index=False)
+        test[2].to_csv("{}/training_0.csv".format(output_folder), mode='a', index=False)
+        test[3].to_csv("{}/training_0.csv".format(output_folder), mode='a', index=False)
+        test[4].to_csv("{}/training_0.csv".format(output_folder), mode='a', index=False)
+
+        test[1].to_csv("{}/test_1.csv".format(output_folder), index=False)
+        test[0].to_csv("{}/training_1.csv".format(output_folder), index=False)
+        test[2].to_csv("{}/training_1.csv".format(output_folder), mode='a', index=False)
+        test[3].to_csv("{}/training_1.csv".format(output_folder), mode='a', index=False)
+        test[4].to_csv("{}/training_1.csv".format(output_folder), mode='a', index=False)
+
+        test[2].to_csv("{}/test_2.csv".format(output_folder), index=False)
+        test[0].to_csv("{}/training_2.csv".format(output_folder), index=False)
+        test[1].to_csv("{}/training_2.csv".format(output_folder), mode='a', index=False)
+        test[3].to_csv("{}/training_2.csv".format(output_folder), mode='a', index=False)
+        test[4].to_csv("{}/training_2.csv".format(output_folder), mode='a', index=False)
+
+        test[3].to_csv("{}/test_3.csv".format(output_folder), index=False)
+        test[0].to_csv("{}/training_3.csv".format(output_folder), index=False)
+        test[1].to_csv("{}/training_3.csv".format(output_folder), mode='a', index=False)
+        test[2].to_csv("{}/training_3.csv".format(output_folder), mode='a', index=False)
+        test[4].to_csv("{}/training_3.csv".format(output_folder), mode='a', index=False)
+
+        test[4].to_csv("{}/test_4.csv".format(output_folder), index=False)
+        test[0].to_csv("{}/training_4.csv".format(output_folder), index=False)
+        test[1].to_csv("{}/training_4.csv".format(output_folder), mode='a', index=False)
+        test[2].to_csv("{}/training_4.csv".format(output_folder), mode='a', index=False)
+        test[3].to_csv("{}/training_4.csv".format(output_folder), mode='a', index=False)
