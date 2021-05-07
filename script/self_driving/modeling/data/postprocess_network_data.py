@@ -34,8 +34,11 @@ if __name__ == "__main__":
 
     df = pd.read_csv(input_file)
     df.columns = df.columns.str.strip()
-    writes = df[df['op_unit'] == 2]  # filter only the writes
-    writes = writes.drop(['op_unit'], axis=1)  # drop the op_unit column
+    if 'op_unit' in df.columns:
+        writes = df[df['op_unit'] == 2]  # filter only the writes
+        writes = writes.drop(['op_unit'], axis=1)  # drop the op_unit column
+    else:
+        writes = df
     if 'query_id' in writes.columns:
         writes = writes[writes['query_id'] != -1]  # remove -1 query_ids
 
