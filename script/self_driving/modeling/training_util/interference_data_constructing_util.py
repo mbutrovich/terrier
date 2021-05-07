@@ -291,11 +291,6 @@ def _predict_grouped_opunit_data(data_list, ou_model_map, model_results_path, us
                     _add_estimation_noise(opunit, x[0])
 
                 key = (opunit, x.tobytes())
-                print(data)
-                print(opunit_feature)
-                print(opunit)
-                print(x)
-                print(y)
                 if key not in prediction_cache:
                     y_pred = opunit_model.predict(x)
                     y_pred = np.clip(y_pred, 0, None)
