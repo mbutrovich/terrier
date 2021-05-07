@@ -41,6 +41,10 @@ if __name__ == "__main__":
     else:
         chunk_size = len(df) // 5
         i = 0
+        test = np.array_split(df, 5)
+        print(df)
+        print(test)
+        exit()
         for test_data in np.array_split(df, 5):
             training_data = df[~df.isin(test_data)]
             training_data.to_csv("{}/training_{}.csv".format(output_folder, i),
