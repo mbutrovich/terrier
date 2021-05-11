@@ -21,7 +21,7 @@ if __name__ == "__main__":
         elif o in ['-o', '--output']:
             output_folder = a
         elif o in ['-r', '--rate']:
-            rate = a
+            rate = int(a)
         else:
             assert False, "unhandled option"
 
