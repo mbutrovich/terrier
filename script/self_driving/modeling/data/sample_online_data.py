@@ -25,8 +25,8 @@ if __name__ == "__main__":
         else:
             assert False, "unhandled option"
 
-    if input_file is None or output_folder is None or rate is None:
-        print("Need input and output locations and rate.")
+    if input_file is None or output_folder is None or samples is None:
+        print("Need input and output locations and sample count.")
         sys.exit(2)
 
     assert (0 < samples), "Invalid sample number."
