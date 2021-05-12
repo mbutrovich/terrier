@@ -37,5 +37,5 @@ if __name__ == "__main__":
     filename = os.path.basename(input_file)
     (file, ext) = os.path.splitext(filename)
 
-    df = df.sample(n=samples, random_state=1)
+    df = df.sample(n=samples)
     df.to_csv("{}/{}.csv".format(output_folder, file), index=False)
